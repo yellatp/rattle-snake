@@ -1,0 +1,198 @@
+{
+  "role": "Data Analyst",
+  "slug": "data_analyst",
+  "contact": {
+    "name": "Your Name",
+    "location": "City, State",
+    "phone": "+1 (555) 000-0000",
+    "email": "your.email@example.com",
+    "linkedin": "linkedin.com/in/yourhandle",
+    "github": "github.com/yourhandle",
+    "portfolio": "yourportfolio.dev"
+  },
+  "sections": {
+    "summary": {
+      "content": "Analytically driven Data Analyst with 3+ years of experience transforming complex, multi-source datasets into clear business intelligence across retail supply chain, consumer research, sports marketing, and fintech. Expert in SQL, Python, and BI visualization tools. Adept at KPI definition, cohort retention analysis, funnel tracking, A/B experimentation, and stakeholder storytelling that accelerates strategic decision-making.",
+      "editable": true
+    },
+    "skills": {
+      "categories": [
+        {
+          "name": "Languages / DBs",
+          "items": [
+            "Python (Pandas, NumPy, SciPy)",
+            "SQL (PostgreSQL, Redshift, DuckDB, Snowflake)",
+            "R"
+          ]
+        },
+        {
+          "name": "Analytics",
+          "items": [
+            "EDA",
+            "A/B Testing",
+            "Power Analysis",
+            "Hypothesis Testing",
+            "Cohort Analysis",
+            "Funnel Tracking",
+            "KPI Definition",
+            "Driver Analysis"
+          ]
+        },
+        {
+          "name": "BI / Reporting",
+          "items": [
+            "Tableau",
+            "Amazon QuickSight",
+            "Looker Studio",
+            "Power BI",
+            "Oracle Analytics Cloud",
+            "Matplotlib",
+            "Grafana"
+          ]
+        },
+        {
+          "name": "Data Engineering",
+          "items": [
+            "PySpark",
+            "AWS (S3, Glue, Athena)",
+            "Apache Airflow",
+            "Databricks",
+            "Snowflake",
+            "Git",
+            "FastAPI",
+            "Streamlit"
+          ]
+        },
+        {
+          "name": "ML / AI",
+          "items": [
+            "Scikit-learn",
+            "XGBoost",
+            "CausalML",
+            "MLflow",
+            "NLP",
+            "AWS Bedrock",
+            "Amazon SageMaker",
+            "Google Vertex AI"
+          ]
+        }
+      ],
+      "editable": true
+    },
+    "experience": [
+      {
+        "id": "exp-da-1",
+        "title": "Founding Engineer, Data and AI Applications",
+        "company": "Alphonso AI, Shipley Center for Innovation",
+        "location": "Austin, USA",
+        "dates": "Jul 2025 - Present",
+        "bullets": [
+          "Conducted funnel analysis on MVP session data, translating drop-off findings into actionable UI/UX redesign recommendations that directly shaped product decisions before launch.",
+          "Built behavioral engagement-scoring models and centralized event data via AWS (S3, Glue) pipelines, enabling automated feature engineering and real-time drift monitoring in Grafana.",
+          "Delivered a 38% lift in search quality through iterative hyperparameter tuning of a hybrid Dense Vector + BM25 retrieval system; synthesized model performance metrics into clear stakeholder reports."
+        ],
+        "locked": false
+      },
+      {
+        "id": "exp-da-2",
+        "title": "Graduate Equity Research Analyst",
+        "company": "Student Managed Investment Fund, Clarkson University",
+        "location": "Potsdam, NY",
+        "dates": "Sep 2024 - Apr 2025",
+        "bullets": [
+          "Automated 3-statement financial data extraction via the SEC EDGAR API and Google Vertex AI, cutting manual research time by 40% and enabling faster DCF and WACC modeling.",
+          "Architected Tableau dashboards for performance attribution and volatility tracking, integrating LLM-driven earnings-call summaries; conducted social-sentiment NLP analysis to surface retail market patterns and validate buy/sell signals.",
+          "Co-managed a $650K portfolio delivering 51% total return, outperforming the S&P 500 by 2,600 bps through data-informed position sizing and risk modeling."
+        ],
+        "locked": false
+      },
+      {
+        "id": "exp-da-3",
+        "title": "Data Science Consultant",
+        "company": "HAVK Mladost x Clarkson University",
+        "location": "Potsdam, NY",
+        "dates": "Oct 2023 - May 2025",
+        "bullets": [
+          "Designed and analyzed A/B experiments for ticket-pricing strategies; applied Power Analysis to confirm sample sizes and validated a statistically significant 12% price optimization.",
+          "Refactored PySpark ETL scripts processing 1M+ cross-channel events (GA4, CRM); applied AWS Glue partition pruning to cut data latency by 30%, accelerating reporting cycles.",
+          "Built behavioral clustering models and applied Uplift Modeling (CausalML) to segment persuadable fans, optimizing incremental marketing spend and improving campaign cohort targeting."
+        ],
+        "locked": false
+      },
+      {
+        "id": "exp-da-4",
+        "title": "Business Data Analyst",
+        "company": "eAppSys Limited",
+        "location": "Hyderabad, India",
+        "dates": "Jul 2022 - Dec 2022",
+        "bullets": [
+          "Deployed automated KPI dashboards in Oracle Analytics Cloud, eliminating 12+ hours per week of manual reporting for the procurement team and enabling self-serve analytics.",
+          "Analyzed approximately 800K daily Oracle Fusion ERP transaction records across supply chain modules, delivering insights that improved demand-forecast accuracy by 15% MAPE.",
+          "Delivered end-to-end GxP-compliant data reporting workflows on Oracle Cloud Infrastructure, achieving 99.9% uptime for critical inventory-monitoring dashboards."
+        ],
+        "locked": false
+      },
+      {
+        "id": "exp-da-5",
+        "title": "Data Analyst",
+        "company": "Kantar GDC India",
+        "location": "Pune, India",
+        "dates": "Sep 2021 - May 2022",
+        "bullets": [
+          "Integrated 10M+ rows from 30+ heterogeneous panel and survey sources using PySpark and Databricks, reducing data processing latency by 40% and improving reporting reliability.",
+          "Designed complex sampling strategies and regression models delivering representative consumer insights for 10+ FMCG and Telecom clients across Middle East and Central Africa markets.",
+          "Produced interactive Power BI dashboards for 10+ stakeholders tracking campaign performance and supporting multi-million-dollar go-to-market investment decisions."
+        ],
+        "locked": false
+      }
+    ],
+    "education": [
+      {
+        "id": "edu-da-1",
+        "degree": "M.S. in Applied Data Science",
+        "institution": "Clarkson University",
+        "location": "Potsdam, NY",
+        "year": "2025"
+      },
+      {
+        "id": "edu-da-2",
+        "degree": "B.Tech in Computer Science",
+        "institution": "Yogi Vemana University",
+        "location": "India",
+        "year": "2020"
+      }
+    ],
+    "certifications": []
+  },
+  "ats_keywords": [
+    "SQL",
+    "Python",
+    "Tableau",
+    "Power BI",
+    "Looker",
+    "data analysis",
+    "A/B testing",
+    "cohort analysis",
+    "dashboard",
+    "KPI",
+    "metrics",
+    "Snowflake",
+    "BigQuery",
+    "data modeling",
+    "statistical analysis",
+    "hypothesis testing",
+    "customer segmentation",
+    "reporting automation",
+    "stakeholder communication",
+    "Databricks",
+    "PySpark",
+    "funnel analysis",
+    "retention analysis",
+    "business intelligence",
+    "data visualization",
+    "EDA",
+    "power analysis",
+    "causal inference"
+  ],
+  "system_prompt_ref": "data_analyst"
+}

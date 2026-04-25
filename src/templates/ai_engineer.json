@@ -1,0 +1,192 @@
+{
+  "role": "AI Engineer",
+  "slug": "ai_engineer",
+  "contact": {
+    "name": "Your Name",
+    "location": "City, State",
+    "phone": "+1 (555) 000-0000",
+    "email": "your.email@example.com",
+    "linkedin": "linkedin.com/in/yourhandle",
+    "github": "github.com/yourhandle",
+    "portfolio": "yourportfolio.dev"
+  },
+  "sections": {
+    "summary": {
+      "content": "AI Engineer with 3+ years of hands-on experience designing and deploying production-grade GenAI systems on AWS. Deep expertise in RAG architectures, LLM prompt engineering, hybrid retrieval, and agentic pipelines. Track record of delivering 38% search precision improvements through Dense Vector + BM25 retrieval with Cross-Encoder reranking, reducing LLM hallucinations, and building observable, drift-monitored AI systems at scale.",
+      "editable": true
+    },
+    "skills": {
+      "categories": [
+        {
+          "name": "GenAI / LLMs",
+          "items": [
+            "AWS Bedrock",
+            "RAG (Dense Vector + BM25 Hybrid)",
+            "Cross-Encoder Reranking",
+            "LLM Prompt Engineering",
+            "LLM Evaluation",
+            "Agentic Pipelines"
+          ]
+        },
+        {
+          "name": "Languages / Frameworks",
+          "items": [
+            "Python",
+            "FastAPI",
+            "Streamlit",
+            "SQL",
+            "Bash"
+          ]
+        },
+        {
+          "name": "ML / MLOps",
+          "items": [
+            "Scikit-learn",
+            "XGBoost",
+            "MLflow",
+            "Amazon SageMaker",
+            "Model Registry",
+            "Drift Detection"
+          ]
+        },
+        {
+          "name": "Cloud / Infra",
+          "items": [
+            "AWS (S3, Glue, Lambda, Athena, Bedrock)",
+            "Apache Airflow",
+            "Databricks",
+            "Snowflake",
+            "Grafana",
+            "Git"
+          ]
+        },
+        {
+          "name": "NLP / Data",
+          "items": [
+            "NLP",
+            "Semantic Text Analysis",
+            "PySpark",
+            "Pandas",
+            "NumPy",
+            "PostgreSQL",
+            "DuckDB"
+          ]
+        }
+      ],
+      "editable": true
+    },
+    "experience": [
+      {
+        "id": "exp-aie-1",
+        "title": "Founding Engineer, Data and AI Applications",
+        "company": "Alphonso AI, Shipley Center for Innovation",
+        "location": "Austin, USA",
+        "dates": "Jul 2025 - Present",
+        "bullets": [
+          "Designed and deployed a production RAG system using hybrid Dense Vector + BM25 retrieval with Cross-Encoder reranking; optimized embedding strategies and relevancy thresholds to achieve 38% improvement in candidate match precision.",
+          "Implemented LLM hallucination controls within a Skill-Match scoring pipeline, enforcing top-N recommendation quality thresholds and establishing automated relevancy evaluation in production.",
+          "Built AWS (S3, Glue) event data pipelines with automated feature engineering and Grafana drift monitoring; operationalized engagement-scoring models with funnel-analysis instrumentation."
+        ],
+        "locked": false
+      },
+      {
+        "id": "exp-aie-2",
+        "title": "Graduate Equity Research Analyst",
+        "company": "Student Managed Investment Fund, Clarkson University",
+        "location": "Potsdam, NY",
+        "dates": "Sep 2024 - Apr 2025",
+        "bullets": [
+          "Automated financial document extraction using the SEC EDGAR API and Google Vertex AI LLMs, reducing manual research time by 40% and enabling structured data pipelines for DCF and WACC models.",
+          "Built a social-sentiment NLP engine leveraging Semantic Text Analysis on Reddit and YouTube data to surface retail market signals and validate investment theses.",
+          "Co-managed a $650K equity portfolio delivering 51% total return, outperforming the S&P 500 by 2,600 bps through AI-assisted analysis and risk modeling."
+        ],
+        "locked": false
+      },
+      {
+        "id": "exp-aie-3",
+        "title": "Data Science and ML Consultant",
+        "company": "HAVK Mladost x Clarkson University",
+        "location": "Potsdam, NY",
+        "dates": "Oct 2023 - May 2025",
+        "bullets": [
+          "Deployed Uplift Modeling (CausalML) to score fans by persuadability and instrumented A/B testing with Power Analysis-driven sample sizing, validating a 12% revenue-per-ticket improvement.",
+          "Refactored PySpark ETL scripts processing 1M+ cross-channel events (GA4, CRM); applied AWS Glue partition pruning to reduce pipeline latency by 30%, accelerating model training cycles.",
+          "Built customer segmentation models using behavioral clustering and PCA, powering personalized campaign cohorts at production scale."
+        ],
+        "locked": false
+      },
+      {
+        "id": "exp-aie-4",
+        "title": "Business Data Analyst",
+        "company": "eAppSys Limited",
+        "location": "Hyderabad, India",
+        "dates": "Jul 2022 - Dec 2022",
+        "bullets": [
+          "Developed and productionized a hybrid forecasting model (Prophet + SARIMAX) across 1,500+ SKUs, achieving 15% MAPE improvement on approximately 800K daily ERP transaction records.",
+          "Deployed GxP-compliant ML workflows on Oracle Cloud Infrastructure with real-time alerting, maintaining 99.9% uptime for mission-critical inventory-monitoring pipelines.",
+          "Automated KPI reporting via Oracle Analytics Cloud dashboards, freeing 12+ engineering hours per week previously spent on manual data preparation."
+        ],
+        "locked": false
+      },
+      {
+        "id": "exp-aie-5",
+        "title": "Data Analyst",
+        "company": "Kantar GDC India",
+        "location": "Pune, India",
+        "dates": "Sep 2021 - May 2022",
+        "bullets": [
+          "Engineered scalable PySpark and Databricks data pipelines processing 10M+ rows from 30+ heterogeneous sources, reducing latency by 40% and improving downstream model training throughput.",
+          "Applied NLP and regression-based modeling to generate consumer insights for 10+ FMCG and Telecom clients across Middle East and Central Africa markets.",
+          "Built Power BI dashboards enabling 10+ stakeholders to self-serve campaign performance data for multi-million-dollar investment decisions."
+        ],
+        "locked": false
+      }
+    ],
+    "education": [
+      {
+        "id": "edu-aie-1",
+        "degree": "M.S. in Applied Data Science",
+        "institution": "Clarkson University",
+        "location": "Potsdam, NY",
+        "year": "2025"
+      },
+      {
+        "id": "edu-aie-2",
+        "degree": "B.Tech in Computer Science",
+        "institution": "Yogi Vemana University",
+        "location": "India",
+        "year": "2020"
+      }
+    ],
+    "certifications": []
+  },
+  "ats_keywords": [
+    "RAG",
+    "LLM",
+    "generative AI",
+    "prompt engineering",
+    "vector search",
+    "embeddings",
+    "AWS Bedrock",
+    "LangChain",
+    "semantic search",
+    "NLP",
+    "Python",
+    "FastAPI",
+    "MLflow",
+    "SageMaker",
+    "drift detection",
+    "model evaluation",
+    "hallucination",
+    "retrieval augmented generation",
+    "agentic",
+    "transformer",
+    "fine-tuning",
+    "AI applications",
+    "production AI",
+    "PySpark",
+    "SQL",
+    "Snowflake"
+  ],
+  "system_prompt_ref": "ml_engineer"
+}

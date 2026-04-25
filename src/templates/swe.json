@@ -1,0 +1,190 @@
+{
+  "role": "Software Engineer",
+  "slug": "swe",
+  "contact": {
+    "name": "Your Name",
+    "location": "City, State",
+    "phone": "+1 (555) 000-0000",
+    "email": "your.email@example.com",
+    "linkedin": "linkedin.com/in/yourhandle",
+    "github": "github.com/yourhandle",
+    "portfolio": "yourportfolio.dev"
+  },
+  "sections": {
+    "summary": {
+      "content": "Software Engineer with 3+ years building data-intensive backend systems, ML pipelines, and API services on AWS. Proficient in Python, FastAPI, PySpark, and SQL with a track record of optimizing data pipelines for 30-40% latency improvements, deploying production ML services with 99.9% uptime, and shipping AI-powered applications that deliver measurable business outcomes. Strong foundation in software engineering principles with domain depth in data systems and applied AI.",
+      "editable": true
+    },
+    "skills": {
+      "categories": [
+        {
+          "name": "Languages",
+          "items": [
+            "Python",
+            "SQL (PostgreSQL, Redshift, DuckDB, Snowflake)",
+            "R",
+            "Bash"
+          ]
+        },
+        {
+          "name": "Backend / APIs",
+          "items": [
+            "FastAPI",
+            "Streamlit",
+            "REST APIs",
+            "Git",
+            "Linux"
+          ]
+        },
+        {
+          "name": "Data Engineering",
+          "items": [
+            "PySpark",
+            "Apache Airflow",
+            "AWS Glue",
+            "AWS Lambda",
+            "AWS S3",
+            "Databricks",
+            "Snowflake"
+          ]
+        },
+        {
+          "name": "ML / AI",
+          "items": [
+            "Scikit-learn",
+            "XGBoost",
+            "MLflow",
+            "Amazon SageMaker",
+            "AWS Bedrock",
+            "RAG Pipelines",
+            "Model Deployment"
+          ]
+        },
+        {
+          "name": "Cloud / DevOps",
+          "items": [
+            "AWS (S3, Glue, Lambda, Athena, Bedrock)",
+            "Oracle Cloud Infrastructure",
+            "Grafana",
+            "Git",
+            "CI/CD"
+          ]
+        }
+      ],
+      "editable": true
+    },
+    "experience": [
+      {
+        "id": "exp-swe-1",
+        "title": "Founding Engineer, Data and AI Applications",
+        "company": "Alphonso AI, Shipley Center for Innovation",
+        "location": "Austin, USA",
+        "dates": "Jul 2025 - Present",
+        "bullets": [
+          "Architected and deployed a hybrid Dense Vector + BM25 retrieval system with Cross-Encoder reranking; optimized embedding strategies and scoring hyperparameters to deliver a 38% improvement in system precision.",
+          "Built end-to-end AWS data pipelines (S3, Glue) with automated feature engineering and Grafana drift monitoring, ensuring sustained reliability for production AI services.",
+          "Operationalized engagement-scoring models with funnel-analysis instrumentation, enabling continuous feedback loops and informing pre-launch product decisions."
+        ],
+        "locked": false
+      },
+      {
+        "id": "exp-swe-2",
+        "title": "Graduate Equity Research Analyst",
+        "company": "Student Managed Investment Fund, Clarkson University",
+        "location": "Potsdam, NY",
+        "dates": "Sep 2024 - Apr 2025",
+        "bullets": [
+          "Engineered an automated financial data extraction pipeline via the SEC EDGAR API and Google Vertex AI, reducing manual processing time by 40% and enabling structured inputs for valuation models.",
+          "Built Monte Carlo simulation models and NLP-based sentiment analysis pipelines in Python to support investment decision-making for a $650K fund that delivered 51% total return.",
+          "Architected Tableau dashboards integrating LLM-generated earnings-call summaries, reducing analyst reporting overhead and accelerating investment committee reviews."
+        ],
+        "locked": false
+      },
+      {
+        "id": "exp-swe-3",
+        "title": "Data Science and ML Consultant",
+        "company": "HAVK Mladost x Clarkson University",
+        "location": "Potsdam, NY",
+        "dates": "Oct 2023 - May 2025",
+        "bullets": [
+          "Refactored PySpark ETL scripts processing 1M+ cross-channel events (GA4, CRM); implemented AWS Glue partition pruning to reduce pipeline latency by 30%, accelerating downstream model training.",
+          "Deployed CausalML and clustering models in production on AWS and instrumented A/B testing infrastructure with Power Analysis-based sample sizing, validating a 12% revenue-per-ticket improvement.",
+          "Built end-to-end behavioral analytics systems from data ingestion to stakeholder reporting, processing multi-source event data at production scale."
+        ],
+        "locked": false
+      },
+      {
+        "id": "exp-swe-4",
+        "title": "Business Data Analyst",
+        "company": "eAppSys Limited",
+        "location": "Hyderabad, India",
+        "dates": "Jul 2022 - Dec 2022",
+        "bullets": [
+          "Developed and productionized a hybrid demand-forecasting model (Prophet + SARIMAX) across 1,500+ SKUs, improving forecast accuracy by 15% MAPE on approximately 800K daily Oracle ERP records.",
+          "Deployed GxP-compliant ML workflows on Oracle Cloud Infrastructure with real-time alerting and monitoring, maintaining 99.9% uptime for mission-critical inventory pipelines.",
+          "Automated KPI reporting pipelines via Oracle Analytics Cloud, eliminating 12+ hours per week of manual data preparation for the procurement team."
+        ],
+        "locked": false
+      },
+      {
+        "id": "exp-swe-5",
+        "title": "Data Analyst",
+        "company": "Kantar GDC India",
+        "location": "Pune, India",
+        "dates": "Sep 2021 - May 2022",
+        "bullets": [
+          "Engineered scalable PySpark and Databricks data ingestion pipelines processing 10M+ rows from 30+ heterogeneous sources, reducing data latency by 40% and improving pipeline reliability.",
+          "Built and maintained Power BI reporting dashboards enabling 10+ stakeholders to self-serve campaign performance data for multi-million-dollar investment decisions.",
+          "Applied regression modeling and sampling frameworks to generate consumer insights for 10+ FMCG and Telecom clients across Middle East and Central Africa markets."
+        ],
+        "locked": false
+      }
+    ],
+    "education": [
+      {
+        "id": "edu-swe-1",
+        "degree": "M.S. in Applied Data Science",
+        "institution": "Clarkson University",
+        "location": "Potsdam, NY",
+        "year": "2025"
+      },
+      {
+        "id": "edu-swe-2",
+        "degree": "B.Tech in Computer Science",
+        "institution": "Yogi Vemana University",
+        "location": "India",
+        "year": "2020"
+      }
+    ],
+    "certifications": []
+  },
+  "ats_keywords": [
+    "Python",
+    "FastAPI",
+    "SQL",
+    "AWS",
+    "PySpark",
+    "Airflow",
+    "Databricks",
+    "REST API",
+    "data pipeline",
+    "ETL",
+    "Snowflake",
+    "PostgreSQL",
+    "Docker",
+    "CI/CD",
+    "Git",
+    "Agile",
+    "machine learning",
+    "ML deployment",
+    "SageMaker",
+    "cloud infrastructure",
+    "distributed systems",
+    "data engineering",
+    "system design",
+    "performance optimization",
+    "Linux",
+    "Bash"
+  ],
+  "system_prompt_ref": "swe"
+}

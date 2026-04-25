@@ -1,0 +1,200 @@
+{
+  "role": "DevOps / Platform Engineer",
+  "slug": "devops",
+  "contact": {
+    "name": "Your Name",
+    "location": "City, State",
+    "phone": "+1 (555) 000-0000",
+    "email": "your.email@example.com",
+    "linkedin": "linkedin.com/in/yourhandle",
+    "github": "github.com/yourhandle",
+    "portfolio": "yourportfolio.dev"
+  },
+  "sections": {
+    "summary": {
+      "content": "Data and ML Platform Engineer with 3+ years designing and operating cloud-native data infrastructure on AWS and Oracle Cloud. Hands-on expertise in pipeline automation, real-time monitoring, GxP compliance, and MLOps. Track record of achieving 99.9% uptime on production systems, reducing pipeline latency by 30-40% through optimization, and building observable, drift-monitored ML platforms that serve business-critical workflows at scale.",
+      "editable": true
+    },
+    "skills": {
+      "categories": [
+        {
+          "name": "Cloud / Infra",
+          "items": [
+            "AWS (S3, Glue, Lambda, Athena, Bedrock, SageMaker)",
+            "Oracle Cloud Infrastructure",
+            "Oracle Analytics Cloud",
+            "Oracle Fusion ERP"
+          ]
+        },
+        {
+          "name": "Data Engineering",
+          "items": [
+            "PySpark",
+            "Apache Airflow",
+            "AWS Glue",
+            "Databricks",
+            "Snowflake",
+            "DuckDB",
+            "PostgreSQL",
+            "Redshift"
+          ]
+        },
+        {
+          "name": "MLOps / Monitoring",
+          "items": [
+            "MLflow",
+            "Grafana",
+            "Drift Detection",
+            "Real-time Alerting",
+            "GxP Compliance",
+            "Data Quality Frameworks",
+            "Model Registry"
+          ]
+        },
+        {
+          "name": "Languages / Tools",
+          "items": [
+            "Python",
+            "SQL",
+            "Bash",
+            "FastAPI",
+            "Streamlit",
+            "Git",
+            "CI/CD"
+          ]
+        },
+        {
+          "name": "ML / AI",
+          "items": [
+            "Amazon SageMaker",
+            "AWS Bedrock",
+            "Scikit-learn",
+            "XGBoost",
+            "RAG Pipelines",
+            "LLM Integration"
+          ]
+        }
+      ],
+      "editable": true
+    },
+    "experience": [
+      {
+        "id": "exp-devops-1",
+        "title": "Founding Engineer, Data and AI Applications",
+        "company": "Alphonso AI, Shipley Center for Innovation",
+        "location": "Austin, USA",
+        "dates": "Jul 2025 - Present",
+        "bullets": [
+          "Designed and deployed end-to-end AWS data pipelines (S3, Glue) centralizing behavioral event data; automated feature engineering workflows and implemented Grafana drift monitoring to maintain production model reliability.",
+          "Operationalized an AI retrieval system (Dense Vector + BM25, Cross-Encoder reranking) with engagement-scoring instrumentation and real-time performance alerting, achieving 38% improvement in system precision.",
+          "Established model observability and continuous feedback loop infrastructure for an early-stage AI platform, enabling rapid iteration and data-driven product decisions pre- and post-launch."
+        ],
+        "locked": false
+      },
+      {
+        "id": "exp-devops-2",
+        "title": "Graduate Equity Research Analyst",
+        "company": "Student Managed Investment Fund, Clarkson University",
+        "location": "Potsdam, NY",
+        "dates": "Sep 2024 - Apr 2025",
+        "bullets": [
+          "Automated financial data extraction pipelines using the SEC EDGAR API and Google Vertex AI, cutting manual research time by 40% and enabling structured downstream data flows for DCF and WACC modeling.",
+          "Built Monte Carlo simulation and risk-parity models in Python to stress-test portfolio positions for a $650K fund delivering 51% total return, outperforming the S&P 500 by 2,600 bps.",
+          "Architected Tableau dashboards with integrated LLM-driven reporting, reducing analytical overhead for a team of 8 research analysts."
+        ],
+        "locked": false
+      },
+      {
+        "id": "exp-devops-3",
+        "title": "Data Science and ML Consultant",
+        "company": "HAVK Mladost x Clarkson University",
+        "location": "Potsdam, NY",
+        "dates": "Oct 2023 - May 2025",
+        "bullets": [
+          "Refactored PySpark ETL scripts processing 1M+ cross-channel events (GA4, CRM); implemented AWS Glue partition pruning to reduce pipeline latency by 30%, directly accelerating model training and reporting cycles.",
+          "Deployed CausalML uplift models and A/B testing infrastructure with Power Analysis-based sample sizing on AWS, validating a 12% revenue-per-ticket improvement with statistical rigor.",
+          "Engineered behavioral analytics pipelines from raw event ingestion to production model serving, processing multi-source data at scale with automated quality checks."
+        ],
+        "locked": false
+      },
+      {
+        "id": "exp-devops-4",
+        "title": "Business Data Analyst",
+        "company": "eAppSys Limited",
+        "location": "Hyderabad, India",
+        "dates": "Jul 2022 - Dec 2022",
+        "bullets": [
+          "Deployed GxP-compliant ML workflows on Oracle Cloud Infrastructure with real-time alerting, maintaining 99.9% uptime for mission-critical inventory-monitoring pipelines across 1,500+ SKUs.",
+          "Productionized a hybrid demand-forecasting model (Prophet + SARIMAX) processing approximately 800K daily Oracle Fusion ERP transactions, achieving 15% MAPE improvement.",
+          "Automated procurement KPI reporting pipelines via Oracle Analytics Cloud dashboards, freeing 12+ engineering hours per week previously spent on manual data preparation."
+        ],
+        "locked": false
+      },
+      {
+        "id": "exp-devops-5",
+        "title": "Data Analyst",
+        "company": "Kantar GDC India",
+        "location": "Pune, India",
+        "dates": "Sep 2021 - May 2022",
+        "bullets": [
+          "Engineered scalable PySpark and Databricks data ingestion pipelines processing 10M+ rows from 30+ heterogeneous sources, reducing data latency by 40% and improving pipeline reliability.",
+          "Designed and maintained Power BI reporting infrastructure for 10+ stakeholders, enabling self-serve access to campaign performance data for multi-million-dollar investment decisions.",
+          "Applied regression modeling and sampling frameworks to generate consumer insights for clients across Middle East and Central Africa markets."
+        ],
+        "locked": false
+      }
+    ],
+    "education": [
+      {
+        "id": "edu-devops-1",
+        "degree": "M.S. in Applied Data Science",
+        "institution": "Clarkson University",
+        "location": "Potsdam, NY",
+        "year": "2025"
+      },
+      {
+        "id": "edu-devops-2",
+        "degree": "B.Tech in Computer Science",
+        "institution": "Yogi Vemana University",
+        "location": "India",
+        "year": "2020"
+      }
+    ],
+    "certifications": []
+  },
+  "ats_keywords": [
+    "AWS",
+    "S3",
+    "Glue",
+    "Lambda",
+    "Airflow",
+    "PySpark",
+    "Databricks",
+    "Snowflake",
+    "data pipeline",
+    "ETL",
+    "MLOps",
+    "MLflow",
+    "SageMaker",
+    "monitoring",
+    "Grafana",
+    "drift detection",
+    "CI/CD",
+    "Python",
+    "SQL",
+    "Bash",
+    "Git",
+    "Linux",
+    "infrastructure",
+    "cloud",
+    "production systems",
+    "observability",
+    "data quality",
+    "real-time alerting",
+    "GxP",
+    "compliance",
+    "uptime",
+    "reliability"
+  ],
+  "system_prompt_ref": "devops"
+}

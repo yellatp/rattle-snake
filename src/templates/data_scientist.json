@@ -1,0 +1,195 @@
+{
+  "role": "Data Scientist",
+  "slug": "data_scientist",
+  "contact": {
+    "name": "Your Name",
+    "location": "City, State",
+    "phone": "+1 (555) 000-0000",
+    "email": "your.email@example.com",
+    "linkedin": "linkedin.com/in/yourhandle",
+    "github": "github.com/yourhandle",
+    "portfolio": "yourportfolio.dev"
+  },
+  "sections": {
+    "summary": {
+      "content": "Data Scientist with 3+ years of experience delivering statistically rigorous insights across retail, sports analytics, and fintech. Skilled in causal inference, A/B experimentation, predictive modeling, and translating complex analytical findings into decisive product and business strategies. Proven record deploying production-ready models (time series, propensity, uplift) on AWS, with a 51% portfolio return and 38% uplift in search precision among key outcomes.",
+      "editable": true
+    },
+    "skills": {
+      "categories": [
+        {
+          "name": "Languages / DBs",
+          "items": [
+            "Python (Pandas, NumPy, SciPy, Scikit-learn)",
+            "SQL (PostgreSQL, Redshift, DuckDB, Snowflake)",
+            "R"
+          ]
+        },
+        {
+          "name": "ML / Statistics",
+          "items": [
+            "XGBoost",
+            "CausalML",
+            "Prophet",
+            "SARIMAX",
+            "MLflow",
+            "Regression",
+            "Classification",
+            "Clustering",
+            "PCA",
+            "NLP"
+          ]
+        },
+        {
+          "name": "Experimentation",
+          "items": [
+            "A/B Testing",
+            "Power Analysis",
+            "Hypothesis Testing",
+            "Causal Inference",
+            "Uplift Modeling",
+            "Monte Carlo Simulation"
+          ]
+        },
+        {
+          "name": "Analytics / BI",
+          "items": [
+            "Tableau",
+            "Amazon QuickSight",
+            "Looker Studio",
+            "Power BI",
+            "Matplotlib",
+            "Google Vertex AI",
+            "AWS Bedrock"
+          ]
+        },
+        {
+          "name": "Data Engineering",
+          "items": [
+            "PySpark",
+            "AWS (S3, Glue, Lambda, Athena)",
+            "Apache Airflow",
+            "Databricks",
+            "Snowflake",
+            "Git",
+            "FastAPI"
+          ]
+        }
+      ],
+      "editable": true
+    },
+    "experience": [
+      {
+        "id": "exp-ds-1",
+        "title": "Founding Engineer, Data and AI Applications",
+        "company": "Alphonso AI, Shipley Center for Innovation",
+        "location": "Austin, USA",
+        "dates": "Jul 2025 - Present",
+        "bullets": [
+          "Architected a hybrid Dense Vector + BM25 retrieval system; tuned embedding strategies and Cross-Encoder reranking hyperparameters to boost search precision by 38%, while reducing LLM hallucinations in production.",
+          "Built AWS (S3, Glue) data pipelines centralizing behavioral event data; automated feature engineering and Grafana drift monitoring to ensure production model reliability.",
+          "Developed engagement-scoring models and performed funnel analysis on MVP session data, identifying drop-off points that informed critical pre-launch UI/UX redesigns."
+        ],
+        "locked": false
+      },
+      {
+        "id": "exp-ds-2",
+        "title": "Graduate Equity Research Analyst",
+        "company": "Student Managed Investment Fund, Clarkson University",
+        "location": "Potsdam, NY",
+        "dates": "Sep 2024 - Apr 2025",
+        "bullets": [
+          "Co-managed a $650K equity portfolio delivering 51% total return, outperforming the S&P 500 benchmark by 2,600 bps.",
+          "Automated fundamental analysis via the SEC EDGAR API and Google Vertex AI, cutting manual research time by 40% and feeding structured data into DCF and WACC valuation models.",
+          "Built a social-sentiment NLP engine and Monte Carlo simulation models to validate investment theses and stress-test portfolio positions, quantifying potential drawdowns and supporting high-conviction trade decisions."
+        ],
+        "locked": false
+      },
+      {
+        "id": "exp-ds-3",
+        "title": "Data Science Consultant",
+        "company": "HAVK Mladost x Clarkson University",
+        "location": "Potsdam, NY",
+        "dates": "Oct 2023 - May 2025",
+        "bullets": [
+          "Applied Uplift Modeling (CausalML) to segment persuadable fans and designed A/B experiments for dynamic ticket-pricing strategies; used Power Analysis to confirm sample sizes, validating a statistically significant 12% price optimization.",
+          "Refactored PySpark ETL scripts processing 1M+ cross-channel events (GA4, CRM); applied AWS Glue partition pruning to reduce data latency by 30%, accelerating reporting and model training cycles.",
+          "Built behavioral clustering models on purchase history and engagement metrics to create personalized campaign cohorts, increasing email open rates across targeted segments."
+        ],
+        "locked": false
+      },
+      {
+        "id": "exp-ds-4",
+        "title": "Business Data Analyst",
+        "company": "eAppSys Limited",
+        "location": "Hyderabad, India",
+        "dates": "Jul 2022 - Dec 2022",
+        "bullets": [
+          "Developed a hybrid demand-forecasting model (Prophet + SARIMAX) across 1,500+ SKUs, improving forecast accuracy by 15% MAPE on approximately 800K daily Oracle Fusion ERP transaction records.",
+          "Productionized GxP-compliant ML workflows on Oracle Cloud Infrastructure with real-time alerting, achieving 99.9% uptime for critical inventory-monitoring systems.",
+          "Deployed automated KPI dashboards in Oracle Analytics Cloud, eliminating 12+ hours per week of manual reporting for the procurement team."
+        ],
+        "locked": false
+      },
+      {
+        "id": "exp-ds-5",
+        "title": "Data Analyst",
+        "company": "Kantar GDC India",
+        "location": "Pune, India",
+        "dates": "Sep 2021 - May 2022",
+        "bullets": [
+          "Built scalable PySpark and Databricks pipelines ingesting 10M+ rows from 30+ heterogeneous panel and survey sources, reducing processing latency by 40%.",
+          "Designed complex sampling strategies and applied regression models to deliver representative consumer insights for 10+ FMCG and Telecom clients across Middle East and Central Africa markets.",
+          "Developed Power BI dashboards used by 10+ stakeholders to track campaign performance and support multi-million-dollar go-to-market investment strategies."
+        ],
+        "locked": false
+      }
+    ],
+    "education": [
+      {
+        "id": "edu-ds-1",
+        "degree": "M.S. in Applied Data Science",
+        "institution": "Clarkson University",
+        "location": "Potsdam, NY",
+        "year": "2025"
+      },
+      {
+        "id": "edu-ds-2",
+        "degree": "B.Tech in Computer Science",
+        "institution": "Yogi Vemana University",
+        "location": "India",
+        "year": "2020"
+      }
+    ],
+    "certifications": []
+  },
+  "ats_keywords": [
+    "machine learning",
+    "deep learning",
+    "Python",
+    "SQL",
+    "statistical modeling",
+    "A/B testing",
+    "causal inference",
+    "hypothesis testing",
+    "experiment design",
+    "XGBoost",
+    "scikit-learn",
+    "NLP",
+    "time series forecasting",
+    "MLflow",
+    "AWS SageMaker",
+    "PySpark",
+    "Snowflake",
+    "BigQuery",
+    "Tableau",
+    "uplift modeling",
+    "clustering",
+    "regression",
+    "classification",
+    "feature engineering",
+    "model deployment",
+    "Monte Carlo simulation"
+  ],
+  "system_prompt_ref": "data_scientist"
+}

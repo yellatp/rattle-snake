@@ -1,0 +1,46 @@
+{
+  "name": "rattle-snake",
+  "type": "module",
+  "version": "0.0.1",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "predev": "node scripts/banner.mjs",
+    "prebuild": "node scripts/banner.mjs",
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.91.0",
+    "@astrojs/react": "^5.0.4",
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "@libsql/client": "^0.17.3",
+    "@tailwindcss/vite": "^4.2.4",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "astro": "^6.1.9",
+    "date-fns": "^4.1.0",
+    "diff-match-patch": "^1.0.5",
+    "docx": "^9.6.1",
+    "fuse.js": "^7.3.0",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
+    "openai": "^6.34.0",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "tailwindcss": "^4.2.4",
+    "zod": "^4.3.6",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.8",
+    "@types/diff-match-patch": "^1.0.36",
+    "mammoth": "^1.12.0",
+    "typescript": "^5.9.3"
+  }
+}

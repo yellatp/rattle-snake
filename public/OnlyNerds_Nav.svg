@@ -1,0 +1,26 @@
+<svg width="600" height="260" viewBox="0 0 600 260" xmlns="http://www.w3.org/2000/svg">
+  <title>OnlyNerds Logo 03 — Tag Syntax</title>
+  <rect width="600" height="260" rx="20" fill="#000000"/>
+
+  <text x="50" y="145"
+        font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="70"
+        fill="#FF7A00"
+        font-weight="300">
+    {<tspan fill="#FFFFFF" font-weight="900" letter-spacing="-2">O</tspan><tspan fill="#FFFFFF" font-weight="400" letter-spacing="-2">nly</tspan>}
+  </text>
+
+  <text x="285" y="145"
+        font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="80"
+        font-weight="200"
+        fill="#1DA1F2">|</text>
+
+  <text x="335" y="145"
+        font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="70"
+        fill="#FF7A00"
+        font-weight="300">
+    &lt;<tspan fill="#FFFFFF" font-weight="900" letter-spacing="-2">N</tspan><tspan fill="#FFFFFF" font-weight="400" letter-spacing="-2">erds</tspan>&gt;
+  </text>
+</svg>

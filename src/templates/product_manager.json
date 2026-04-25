@@ -1,0 +1,197 @@
+{
+  "role": "Product Manager",
+  "slug": "product_manager",
+  "contact": {
+    "name": "Your Name",
+    "location": "City, State",
+    "phone": "+1 (555) 000-0000",
+    "email": "your.email@example.com",
+    "linkedin": "linkedin.com/in/yourhandle",
+    "github": "github.com/yourhandle",
+    "portfolio": "yourportfolio.dev"
+  },
+  "sections": {
+    "summary": {
+      "content": "Data-driven Product Manager with 3+ years of experience in product analytics, experimentation, and AI product development. Unique combination of hands-on ML engineering depth and product intuition built through founding-engineer and consulting roles. Track record of shipping data products, running statistically rigorous A/B experiments, defining KPI frameworks, and translating user behavior insights into product roadmap decisions that drive measurable outcomes.",
+      "editable": true
+    },
+    "skills": {
+      "categories": [
+        {
+          "name": "Product",
+          "items": [
+            "Product Roadmapping",
+            "A/B Testing",
+            "Feature Prioritization",
+            "OKR Definition",
+            "Go-to-Market",
+            "User Funnel Analysis",
+            "Stakeholder Alignment"
+          ]
+        },
+        {
+          "name": "Analytics",
+          "items": [
+            "SQL",
+            "Python",
+            "Tableau",
+            "Looker Studio",
+            "Amazon QuickSight",
+            "Funnel Tracking",
+            "Cohort Analysis",
+            "KPI Definition"
+          ]
+        },
+        {
+          "name": "AI / ML",
+          "items": [
+            "AWS Bedrock",
+            "RAG Pipelines",
+            "LLM Product Features",
+            "MLflow",
+            "Amazon SageMaker",
+            "Model Evaluation"
+          ]
+        },
+        {
+          "name": "Collaboration",
+          "items": [
+            "Jira",
+            "Confluence",
+            "Notion",
+            "Figma",
+            "Git",
+            "Agile/Scrum"
+          ]
+        },
+        {
+          "name": "Technical",
+          "items": [
+            "FastAPI",
+            "PySpark",
+            "AWS (S3, Glue, Lambda)",
+            "Databricks",
+            "Snowflake",
+            "Oracle ERP"
+          ]
+        }
+      ],
+      "editable": true
+    },
+    "experience": [
+      {
+        "id": "exp-pm-1",
+        "title": "Founding Engineer, Data and AI Applications",
+        "company": "Alphonso AI, Shipley Center for Innovation",
+        "location": "Austin, USA",
+        "dates": "Jul 2025 - Present",
+        "bullets": [
+          "Defined and tracked product quality metrics for an AI-powered candidate matching system; ran iterative experiments on retrieval strategies (Dense Vector + BM25) to achieve 38% improvement in search precision.",
+          "Conducted funnel analysis on MVP session data, synthesized drop-off findings into actionable product requirements, and directly shaped pre-launch UI/UX decisions through cross-functional collaboration.",
+          "Established model observability infrastructure (Grafana drift monitoring) and engagement-scoring instrumentation, creating continuous feedback loops that informed product iteration post-launch."
+        ],
+        "locked": false
+      },
+      {
+        "id": "exp-pm-2",
+        "title": "Graduate Equity Research Analyst",
+        "company": "Student Managed Investment Fund, Clarkson University",
+        "location": "Potsdam, NY",
+        "dates": "Sep 2024 - Apr 2025",
+        "bullets": [
+          "Led automation of fundamental research workflows via the SEC EDGAR API and Google Vertex AI, reducing analyst time-on-task by 40% and standardizing data inputs across a team of 8 analysts.",
+          "Architected Tableau performance dashboards with LLM-driven earnings-call summaries, improving investment committee reporting velocity and enabling data-informed portfolio decisions.",
+          "Co-managed a $650K portfolio delivering 51% total return, outperforming the S&P 500 by 2,600 bps through systematic analysis frameworks and structured decision-making processes."
+        ],
+        "locked": false
+      },
+      {
+        "id": "exp-pm-3",
+        "title": "Data Science Consultant",
+        "company": "HAVK Mladost x Clarkson University",
+        "location": "Potsdam, NY",
+        "dates": "Oct 2023 - May 2025",
+        "bullets": [
+          "Designed and analyzed A/B experiments for dynamic ticket-pricing strategies using Power Analysis-based sample sizing, validating a statistically significant 12% revenue-per-ticket improvement that informed pricing policy changes.",
+          "Delivered customer segmentation and Uplift Modeling (CausalML) insights to optimize incremental marketing spend, replacing heuristic rules with data-driven audience targeting.",
+          "Built behavioral analytics pipelines processing 1M+ cross-channel events (GA4, CRM) via PySpark and AWS, reducing data latency by 30% and enabling timely campaign performance reporting."
+        ],
+        "locked": false
+      },
+      {
+        "id": "exp-pm-4",
+        "title": "Business Data Analyst",
+        "company": "eAppSys Limited",
+        "location": "Hyderabad, India",
+        "dates": "Jul 2022 - Dec 2022",
+        "bullets": [
+          "Deployed automated KPI dashboards in Oracle Analytics Cloud, eliminating 12+ hours per week of manual reporting and enabling procurement team self-service analytics.",
+          "Drove 15% MAPE improvement in demand forecasting across 1,500+ SKUs by developing and productionizing a hybrid model (Prophet + SARIMAX) on approximately 800K daily ERP records.",
+          "Delivered GxP-compliant monitoring workflows with real-time alerting and 99.9% uptime, ensuring operational visibility for business-critical inventory management decisions."
+        ],
+        "locked": false
+      },
+      {
+        "id": "exp-pm-5",
+        "title": "Data Analyst",
+        "company": "Kantar GDC India",
+        "location": "Pune, India",
+        "dates": "Sep 2021 - May 2022",
+        "bullets": [
+          "Integrated 10M+ rows from 30+ heterogeneous data sources using PySpark and Databricks, reducing processing latency by 40% and improving data reliability for stakeholder reporting.",
+          "Designed sampling strategies and regression models to deliver consumer insights for 10+ FMCG and Telecom clients, supporting multi-million-dollar go-to-market investment decisions.",
+          "Built Power BI dashboards enabling 10+ stakeholders to self-serve campaign performance data across Middle East and Central Africa markets."
+        ],
+        "locked": false
+      }
+    ],
+    "education": [
+      {
+        "id": "edu-pm-1",
+        "degree": "M.S. in Applied Data Science",
+        "institution": "Clarkson University",
+        "location": "Potsdam, NY",
+        "year": "2025"
+      },
+      {
+        "id": "edu-pm-2",
+        "degree": "B.Tech in Computer Science",
+        "institution": "Yogi Vemana University",
+        "location": "India",
+        "year": "2020"
+      }
+    ],
+    "certifications": []
+  },
+  "ats_keywords": [
+    "product roadmap",
+    "product strategy",
+    "OKRs",
+    "KPIs",
+    "A/B testing",
+    "go-to-market",
+    "user research",
+    "funnel analysis",
+    "stakeholder management",
+    "cross-functional",
+    "data-driven",
+    "SQL",
+    "Tableau",
+    "Figma",
+    "Jira",
+    "agile",
+    "scrum",
+    "sprint",
+    "user story",
+    "feature prioritization",
+    "product analytics",
+    "cohort analysis",
+    "retention",
+    "activation",
+    "machine learning",
+    "AI product",
+    "launch",
+    "pricing"
+  ],
+  "system_prompt_ref": "product_manager"
+}

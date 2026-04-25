@@ -1,0 +1,77 @@
+name: Bug Report
+description: Something is broken or behaving unexpectedly
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please fill out the fields below so we can reproduce and fix it quickly.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: A clear description of the bug.
+      placeholder: "When I click X, Y happens instead of Z..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Exact steps to trigger the bug.
+      placeholder: |
+        1. Go to Generate page
+        2. Select a template
+        3. Click Generate
+        4. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      placeholder: What should have happened?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: provider
+    attributes:
+      label: AI Provider
+      description: Which provider were you using when the bug occurred?
+      options:
+        - Anthropic (Claude)
+        - OpenAI
+        - Google Gemini
+        - xAI (Grok)
+        - DeepSeek
+        - Moonshot KIMI
+        - Alibaba Qwen
+        - Not applicable / UI bug
+
+  - type: textarea
+    id: console
+    attributes:
+      label: Console errors (if any)
+      description: Open DevTools (F12) → Console tab and paste any errors.
+      render: shell
+
+  - type: dropdown
+    id: browser
+    attributes:
+      label: Browser
+      options:
+        - Chrome
+        - Firefox
+        - Safari
+        - Edge
+        - Other
+
+  - type: input
+    id: version
+    attributes:
+      label: Rattle-Snake version
+      placeholder: "e.g. v1.0"

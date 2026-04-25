@@ -1,0 +1,191 @@
+{
+  "role": "Business Analyst",
+  "slug": "business_analyst",
+  "contact": {
+    "name": "Your Name",
+    "location": "City, State",
+    "phone": "+1 (555) 000-0000",
+    "email": "your.email@example.com",
+    "linkedin": "linkedin.com/in/yourhandle",
+    "github": "github.com/yourhandle",
+    "portfolio": "yourportfolio.dev"
+  },
+  "sections": {
+    "summary": {
+      "content": "Business Analyst with 3+ years translating complex data into strategic business intelligence across supply chain, consumer research, sports marketing, and fintech. Expert in KPI definition, process analysis, BI dashboard development, and stakeholder reporting. Skilled at bridging technical data systems and business stakeholders to identify operational inefficiencies, quantify impact, and drive process improvements that deliver measurable results.",
+      "editable": true
+    },
+    "skills": {
+      "categories": [
+        {
+          "name": "Business Analysis",
+          "items": [
+            "KPI Definition",
+            "Requirements Gathering",
+            "Process Analysis",
+            "Stakeholder Management",
+            "Root Cause Analysis",
+            "Driver Analysis"
+          ]
+        },
+        {
+          "name": "Analytics / BI",
+          "items": [
+            "Tableau",
+            "Power BI",
+            "Amazon QuickSight",
+            "Oracle Analytics Cloud",
+            "Looker Studio",
+            "Grafana",
+            "Excel (Advanced)"
+          ]
+        },
+        {
+          "name": "Languages / DBs",
+          "items": [
+            "SQL (PostgreSQL, Redshift, DuckDB, Snowflake)",
+            "Python (Pandas, NumPy)",
+            "R"
+          ]
+        },
+        {
+          "name": "Experimentation",
+          "items": [
+            "A/B Testing",
+            "Power Analysis",
+            "Hypothesis Testing",
+            "Cohort Analysis",
+            "Funnel Tracking",
+            "Statistical Significance"
+          ]
+        },
+        {
+          "name": "Data Engineering",
+          "items": [
+            "PySpark",
+            "AWS (S3, Glue, Athena)",
+            "Databricks",
+            "Apache Airflow",
+            "Oracle Fusion ERP",
+            "Oracle Cloud Infrastructure",
+            "Git"
+          ]
+        }
+      ],
+      "editable": true
+    },
+    "experience": [
+      {
+        "id": "exp-ba-1",
+        "title": "Founding Engineer, Data and AI Applications",
+        "company": "Alphonso AI, Shipley Center for Innovation",
+        "location": "Austin, USA",
+        "dates": "Jul 2025 - Present",
+        "bullets": [
+          "Translated MVP funnel analysis findings into prioritized product improvement recommendations, directly informing UI/UX roadmap decisions and shaping the pre-launch go-to-market strategy.",
+          "Built behavioral engagement-scoring models and centralized event data pipelines via AWS (S3, Glue), enabling automated reporting and real-time Grafana drift monitoring for business stakeholders.",
+          "Synthesized search quality metrics from a hybrid retrieval system (38% precision improvement) into clear executive-level performance reports bridging technical findings with business outcomes."
+        ],
+        "locked": false
+      },
+      {
+        "id": "exp-ba-2",
+        "title": "Graduate Equity Research Analyst",
+        "company": "Student Managed Investment Fund, Clarkson University",
+        "location": "Potsdam, NY",
+        "dates": "Sep 2024 - Apr 2025",
+        "bullets": [
+          "Automated 3-statement financial data extraction via the SEC EDGAR API and Google Vertex AI, cutting manual research effort by 40% and standardizing inputs for DCF and WACC valuation models.",
+          "Architected Tableau dashboards for fund performance attribution and volatility tracking, integrating LLM-driven earnings-call summaries to streamline executive reporting across 8 research analysts.",
+          "Co-managed a $650K equity portfolio delivering 51% total return and outperforming the S&P 500 by 2,600 bps through systematic data-informed investment analysis."
+        ],
+        "locked": false
+      },
+      {
+        "id": "exp-ba-3",
+        "title": "Data Science Consultant",
+        "company": "HAVK Mladost x Clarkson University",
+        "location": "Potsdam, NY",
+        "dates": "Oct 2023 - May 2025",
+        "bullets": [
+          "Designed A/B experiments with Power Analysis-based sample sizing for dynamic ticket-pricing strategies, validating a statistically significant 12% revenue-per-ticket improvement that informed pricing policy changes.",
+          "Delivered segmentation analysis using behavioral clustering and Uplift Modeling (CausalML) to identify persuadable customer segments, optimizing marketing spend allocation and improving campaign ROI.",
+          "Refactored PySpark ETL pipelines processing 1M+ cross-channel events (GA4, CRM), implementing AWS Glue partition pruning to reduce data latency by 30% and accelerate business reporting cycles."
+        ],
+        "locked": false
+      },
+      {
+        "id": "exp-ba-4",
+        "title": "Business Data Analyst",
+        "company": "eAppSys Limited",
+        "location": "Hyderabad, India",
+        "dates": "Jul 2022 - Dec 2022",
+        "bullets": [
+          "Deployed automated KPI dashboards in Oracle Analytics Cloud, eliminating 12+ hours per week of manual procurement reporting and enabling self-serve access for business stakeholders.",
+          "Analyzed approximately 800K daily Oracle Fusion ERP transaction records across supply chain modules, delivering demand-forecast insights that improved accuracy by 15% MAPE across 1,500+ SKUs.",
+          "Delivered GxP-compliant data reporting workflows on Oracle Cloud Infrastructure with real-time alerting and 99.9% uptime, ensuring business-critical inventory visibility for operations teams."
+        ],
+        "locked": false
+      },
+      {
+        "id": "exp-ba-5",
+        "title": "Data Analyst",
+        "company": "Kantar GDC India",
+        "location": "Pune, India",
+        "dates": "Sep 2021 - May 2022",
+        "bullets": [
+          "Integrated 10M+ rows from 30+ heterogeneous panel and survey sources using PySpark and Databricks, reducing processing latency by 40% and improving business reporting consistency.",
+          "Designed sampling frameworks and regression-based models to deliver representative consumer insights for 10+ FMCG and Telecom clients supporting multi-million-dollar investment decisions.",
+          "Produced interactive Power BI dashboards for 10+ stakeholders enabling self-serve campaign performance tracking and go-to-market strategy evaluation across Middle East and Central Africa markets."
+        ],
+        "locked": false
+      }
+    ],
+    "education": [
+      {
+        "id": "edu-ba-1",
+        "degree": "M.S. in Applied Data Science",
+        "institution": "Clarkson University",
+        "location": "Potsdam, NY",
+        "year": "2025"
+      },
+      {
+        "id": "edu-ba-2",
+        "degree": "B.Tech in Computer Science",
+        "institution": "Yogi Vemana University",
+        "location": "India",
+        "year": "2020"
+      }
+    ],
+    "certifications": []
+  },
+  "ats_keywords": [
+    "business analysis",
+    "requirements gathering",
+    "stakeholder management",
+    "KPI",
+    "SQL",
+    "Tableau",
+    "Power BI",
+    "process improvement",
+    "A/B testing",
+    "data analysis",
+    "business intelligence",
+    "dashboard",
+    "reporting",
+    "cohort analysis",
+    "funnel analysis",
+    "hypothesis testing",
+    "Python",
+    "Snowflake",
+    "Excel",
+    "ERP",
+    "supply chain",
+    "root cause analysis",
+    "driver analysis",
+    "cross-functional",
+    "agile",
+    "Jira"
+  ],
+  "system_prompt_ref": "data_analyst"
+}
