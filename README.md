@@ -39,7 +39,14 @@ Everything runs in the browser. No server. No database. Nothing leaves your mach
 | [How It Works](docs/how-it-works.md) | ATS pipeline, scoring algorithm, system prompt design |
 | [Installation & Setup](docs/install.md) | Prerequisites, build, API key setup |
 | [AI Providers](docs/providers.md) | 7 supported providers, recommended models |
-| [Roadmap](docs/roadmap.md) | Planned roles and features |
+| [Future Plans](docs/future-plans.md) | Hierarchical prompt vision, extension, planned features |
+| [Contributors](CONTRIBUTORS.md) | How to add providers, templates, and role prompts |
+
+---
+
+## Provider Status
+
+DeepSeek is fully working. Gemini and OpenAI are currently being tested. Anthropic and other providers will be updated soon. If you want to stress-test a provider, validate outputs, or push it to its limits — contributions are welcome.
 
 ---
 
