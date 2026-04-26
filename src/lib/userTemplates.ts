@@ -72,13 +72,29 @@ function slugify(str: string): string {
 }
 
 const SECTION_HEADERS = [
-  'TECHNICAL SKILLS', 'SKILLS', 'EXPERIENCE', 'EDUCATION',
-  'CERTIFICATIONS', 'SUMMARY', 'PROFESSIONAL SUMMARY', 'OBJECTIVE',
+  'TECHNICAL SKILLS', 'SKILLS', 'WORK EXPERIENCE', 'EXPERIENCE', 'PROFESSIONAL EXPERIENCE',
+  'EMPLOYMENT HISTORY', 'CAREER HISTORY', 'EDUCATION', 'ACADEMIC BACKGROUND',
+  'CERTIFICATIONS', 'LICENSES', 'AWARDS', 'SUMMARY', 'PROFESSIONAL SUMMARY',
+  'CAREER SUMMARY', 'OBJECTIVE', 'PROJECTS', 'PERSONAL PROJECTS', 'KEY PROJECTS',
+  'NOTABLE PROJECTS', 'SIDE PROJECTS', 'OPEN SOURCE',
 ];
 
 function detectSection(line: string): string | null {
-  const upper = line.trim().toUpperCase();
-  return SECTION_HEADERS.find(h => upper === h || upper.startsWith(h)) ?? null;
+  const upper = line.trim().toUpperCase().replace(/[^A-Z\s]/g, '');
+  for (const h of SECTION_HEADERS) {
+    if (upper === h || upper.startsWith(h)) return h;
+  }
+  // Fallback: only detect lines that are already ALL-CAPS in the source
+  // (avoids matching proper names like "Jane Smith" or "Senior Data Scientist")
+  const original = line.trim();
+  const isAlreadyUpperCase = original.replace(/[^A-Za-z]/g, '').length > 0 &&
+    original.replace(/[^A-Za-z]/g, '') === original.replace(/[^A-Za-z]/g, '').toUpperCase();
+  if (isAlreadyUpperCase && upper.length >= 5 && upper.length <= 40 &&
+      /^[A-Z\s]+$/.test(upper) && !upper.includes('  ')) {
+    const candidate = upper.trim();
+    if (candidate.split(' ').length <= 4) return candidate;
+  }
+  return null;
 }
 
 function parseContactLine(line: string): Partial<UserTemplate['contact']> {
@@ -95,26 +111,40 @@ function parseContactLine(line: string): Partial<UserTemplate['contact']> {
   return contact;
 }
 
+// Action verbs commonly used to start resume bullets
+const ACTION_VERBS = /^(Led|Built|Designed|Developed|Created|Implemented|Managed|Improved|Increased|Reduced|Delivered|Architected|Deployed|Automated|Collaborated|Launched|Owned|Drove|Scaled|Maintained|Optimized|Streamlined|Established|Mentored|Coordinated|Analyzed|Researched|Engineered|Integrated|Migrated|Refactored|Wrote|Trained|Achieved|Generated|Produced|Executed|Spearheaded|Pioneered|Introduced|Transformed|Worked|Supported|Assisted|Contributed)/i;
+
+function cleanBullet(text: string): string {
+  return text
+    .replace(/^[-•*·▪▸→]\s*/, '')
+    .replace(/—/g, ', ')
+    .replace(/–/g, '-')
+    .trim();
+}
+
 function parseExperienceBlock(lines: string[]): UserTemplate['sections']['experience'] {
   const experiences: UserTemplate['sections']['experience'] = [];
   let current: UserTemplate['sections']['experience'][0] | null = null;
+
+  // Date pattern: "Jul 2025 - Present", "Sep 2021 - May 2022", "2021 - 2023", "2021 – Present"
+  const datePattern = /(\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+)?\d{4}\s*[-–]\s*(Present|\d{4}|(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4})/i;
 
   for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed) continue;
 
-    // Detect job title line — contains pipe separator or matches "Title | Company" pattern
-    const titleMatch = trimmed.match(/^(.+?)\s+\|\s+(.+?)\s+\|\s+(.+?)\s+\|\s+(.+)$/) ||
-                       trimmed.match(/^(.+?)\s+\|\s+(.+?)\s+\|\s+(.+)$/) ||
-                       trimmed.match(/^(.+?)\s+\|\s+(.+)$/);
-
-    // Date pattern: "Jul 2025 - Present" or "Sep 2021 - May 2022"
-    const datePattern = /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4}\s*[-]\s*(Present|\w+\s+\d{4})\b/i;
     const dateMatch = trimmed.match(datePattern);
+
+    // Detect job title line by pipe separator
+    const hasPipe = trimmed.includes(' | ') || trimmed.includes(' | ');
+    const titleMatch = hasPipe
+      ? trimmed.match(/^(.+?)\s+\|\s+(.+?)\s+\|\s+(.+?)\s+\|\s+(.+)$/) ||
+        trimmed.match(/^(.+?)\s+\|\s+(.+?)\s+\|\s+(.+)$/) ||
+        trimmed.match(/^(.+?)\s+\|\s+(.+)$/)
+      : null;
 
     if (titleMatch && dateMatch) {
       if (current) experiences.push(current);
-      // Parse: "Title | Company | Location\tDate" format from docx
       const parts = trimmed.split(/\s+\|\s+/);
       current = {
         id: uid(),
@@ -125,18 +155,28 @@ function parseExperienceBlock(lines: string[]): UserTemplate['sections']['experi
         bullets: [],
         locked: false,
       };
-    } else if (dateMatch && !current?.dates) {
-      if (current) current.dates = dateMatch[0];
-    } else if (current && (trimmed.startsWith('-') || trimmed.startsWith('•') || trimmed.length > 40)) {
-      const bullet = trimmed.replace(/^[-•]\s*/, '').trim();
-      // Remove EM-dashes
-      const cleanBullet = bullet.replace(/—/g, ', ').replace(/–/g, '-');
-      if (cleanBullet.length > 20) current.bullets.push(cleanBullet);
+    } else if (dateMatch && current && !current.dates) {
+      current.dates = dateMatch[0];
+    } else if (dateMatch && !current) {
+      // Standalone date line — possibly a new entry whose title was on a previous line
+    } else if (current) {
+      const isBullet = trimmed.startsWith('-') || trimmed.startsWith('•') ||
+                       trimmed.startsWith('*') || trimmed.startsWith('·') ||
+                       trimmed.startsWith('▪') || trimmed.startsWith('▸') ||
+                       trimmed.startsWith('→');
+      const isActionVerb = ACTION_VERBS.test(trimmed);
+      const isLongLine = trimmed.length > 40;
+
+      if (isBullet || (isActionVerb && isLongLine) || isLongLine) {
+        const cb = cleanBullet(trimmed);
+        if (cb.length > 20) current.bullets.push(cb);
+      }
     }
   }
 
   if (current) experiences.push(current);
-  return experiences.filter(e => e.bullets.length >= 2);
+  // Keep entries with at least 1 bullet; discard only completely empty ones
+  return experiences.filter(e => e.title.length > 1);
 }
 
 function parseSkillsBlock(lines: string[]): UserTemplate['sections']['skills'] {
@@ -199,44 +239,62 @@ function parseEducationBlock(lines: string[]): UserTemplate['sections']['educati
 }
 
 export function parseDocxText(rawText: string, role: string): UserTemplate {
-  // Clean EM-dashes globally
-  const text = rawText.replace(/—/g, ', ').replace(/–/g, '-');
+  // Clean EM-dashes and smart quotes globally
+  const text = rawText
+    .replace(/—/g, ', ')   // em-dash
+    .replace(/–/g, '-')    // en-dash
+    .replace(/‘|’/g, "'")  // smart single quotes
+    .replace(/“|”/g, '"'); // smart double quotes
   const lines = text.split('\n').map(l => l.trim());
 
   let currentSection = 'HEADER';
   const sectionLines: Record<string, string[]> = {
-    HEADER: [], SUMMARY: [], SKILLS: [], EXPERIENCE: [], EDUCATION: [], CERTIFICATIONS: [],
+    HEADER: [], SUMMARY: [], SKILLS: [], EXPERIENCE: [], EDUCATION: [],
+    CERTIFICATIONS: [], PROJECTS: [],
   };
 
-  // Extract name (first non-empty line) and contact
+  // Determine header boundary (first 10 non-empty lines or until we hit a known section)
   let name = '';
   let titleLine = '';
   const contactLines: string[] = [];
+  let headerDone = false;
+  let nonEmptyCount = 0;
 
-  for (let i = 0; i < Math.min(lines.length, 8); i++) {
+  for (let i = 0; i < lines.length; i++) {
     const l = lines[i].trim();
     if (!l) continue;
-    if (!name) { name = l; continue; }
-    if (!titleLine && !l.includes('|') && !l.includes('@')) { titleLine = l; continue; }
-    if (l.includes('|')) { contactLines.push(l); }
+    if (!headerDone) {
+      const sec = detectSection(l);
+      if (sec) { headerDone = true; }
+      else {
+        nonEmptyCount++;
+        if (!name) { name = l; }
+        else if (!titleLine && !l.includes('|') && !l.includes('@') && !l.match(/^\+?\d/) && l.length < 60) {
+          titleLine = l;
+        } else if (l.includes('|') || l.includes('@') || l.match(/^\+?\d/) || l.includes('linkedin') || l.includes('github')) {
+          contactLines.push(l);
+        }
+        if (nonEmptyCount >= 8) headerDone = true;
+        continue;
+      }
+    }
+
+    const section = detectSection(l);
+    if (section) {
+      if (section.includes('SKILL')) currentSection = 'SKILLS';
+      else if (section.includes('EXPERIENCE') || section.includes('EMPLOYMENT') || section.includes('CAREER')) currentSection = 'EXPERIENCE';
+      else if (section.includes('EDUCATION') || section.includes('ACADEMIC')) currentSection = 'EDUCATION';
+      else if (section.includes('CERTIF') || section.includes('LICENSE') || section.includes('AWARD')) currentSection = 'CERTIFICATIONS';
+      else if (section.includes('SUMMARY') || section.includes('OBJECTIVE')) currentSection = 'SUMMARY';
+      else if (section.includes('PROJECT') || section.includes('OPEN SOURCE')) currentSection = 'PROJECTS';
+      continue;
+    }
+    if (sectionLines[currentSection]) sectionLines[currentSection].push(l);
   }
 
   const contact: UserTemplate['contact'] = { name };
   for (const cl of contactLines) {
     Object.assign(contact, parseContactLine(cl));
-  }
-
-  for (const line of lines) {
-    const section = detectSection(line);
-    if (section) {
-      if (section.includes('SKILL')) currentSection = 'SKILLS';
-      else if (section.includes('EXPERIENCE')) currentSection = 'EXPERIENCE';
-      else if (section.includes('EDUCATION')) currentSection = 'EDUCATION';
-      else if (section.includes('CERTIF')) currentSection = 'CERTIFICATIONS';
-      else if (section.includes('SUMMARY') || section.includes('OBJECTIVE')) currentSection = 'SUMMARY';
-      continue;
-    }
-    if (sectionLines[currentSection]) sectionLines[currentSection].push(line);
   }
 
   const summary = sectionLines.SUMMARY
@@ -247,8 +305,11 @@ export function parseDocxText(rawText: string, role: string): UserTemplate {
 
   const certifications = sectionLines.CERTIFICATIONS
     .filter(l => l.trim().length > 5)
-    .map(l => l.replace(/^[-*]\s*/, '').trim())
+    .map(l => l.replace(/^[-*•]\s*/, '').trim())
     .filter(Boolean);
+
+  // Merge PROJECTS into EXPERIENCE (projects = additional experience entries)
+  const allExperienceLines = [...sectionLines.EXPERIENCE, '', ...sectionLines.PROJECTS];
 
   return {
     id: uid(),
@@ -261,7 +322,7 @@ export function parseDocxText(rawText: string, role: string): UserTemplate {
     sections: {
       summary: { content: summary, editable: true },
       skills: parseSkillsBlock(sectionLines.SKILLS),
-      experience: parseExperienceBlock(sectionLines.EXPERIENCE),
+      experience: parseExperienceBlock(allExperienceLines),
       education: parseEducationBlock(sectionLines.EDUCATION),
       certifications,
     },

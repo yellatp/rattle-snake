@@ -50,7 +50,8 @@ export function updateApplication(id: string, data: Partial<Application>): Appli
   const all = getApplications();
   const idx = all.findIndex(a => a.id === id);
   if (idx === -1) return undefined;
-  const updated = { ...all[idx], ...data, updated_at: now() };
+  const current = all[idx];
+  const updated = { ...current, ...data, updated_at: now() };
   all[idx] = updated;
   setStore('applications', all);
   return updated;
@@ -129,6 +130,13 @@ export function createInterviewPrep(data: Omit<InterviewPrep, 'id' | 'created_at
 
 export function deleteInterviewPrep(id: string): void {
   setStore('interview_prep', getStore<InterviewPrep>('interview_prep').filter(p => p.id !== id));
+}
+
+export function getRecentResumeVersions(limit = 8): ResumeVersion[] {
+  const all = getStore<ResumeVersion>('resume_versions');
+  return [...all]
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, limit);
 }
 
 // ─── Recent JDs ──────────────────────────────────────────────────────────────

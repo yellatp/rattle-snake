@@ -88,6 +88,7 @@ export interface Application {
   jd_text: string;
   jd_url: string;
   status: 'wishlist' | 'applied' | 'phone_screen' | 'interview' | 'offer' | 'rejected';
+  interview_round?: number;
   salary_min?: number;
   salary_max?: number;
   location: string;
@@ -107,6 +108,9 @@ export interface ResumeVersion {
   tokens_used: number;
   label: string;
   is_active: number;
+  target_company?: string;
+  target_role?: string;
+  is_applied?: boolean;
   created_at: string;
 }
 
@@ -138,6 +142,6 @@ export const STATUS_LABELS: Record<ApplicationStatus, string> = {
   applied: 'Applied',
   phone_screen: 'Phone Screen',
   interview: 'Interview',
-  offer: 'Offer',
+  offer: 'Offered',
   rejected: 'Rejected',
 };

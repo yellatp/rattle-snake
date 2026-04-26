@@ -46,7 +46,7 @@ interface AppState {
   setUserBio: (bio: string) => void;
 }
 
-const DEFAULT_PROVIDERS: ProviderConfigs = {
+export const DEFAULT_PROVIDERS: ProviderConfigs = {
   anthropic: { apiKey: '', model: 'claude-sonnet-4-6',       enabled: false },
   openai:    { apiKey: '', model: 'gpt-4o',                  enabled: false },
   xai:       { apiKey: '', model: 'grok-2-latest',           enabled: false },
@@ -101,6 +101,16 @@ export const useAppStore = create<AppState>()(
         currentTemplateSlug: state.currentTemplateSlug,
         userBio: state.userBio,
       }),
+      // Deep-merge providers so newly-added providers (kimi, qwen, etc.) are never
+      // missing when old localStorage data predates their addition.
+      merge: (persisted, current) => {
+        const ps = persisted as Partial<typeof current>;
+        return {
+          ...current,
+          ...ps,
+          providers: { ...current.providers, ...(ps.providers ?? {}) },
+        };
+      },
     }
   )
 );

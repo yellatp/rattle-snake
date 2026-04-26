@@ -13,7 +13,7 @@ import { AI_ENGINEER_SYSTEM_PROMPT } from '../lib/ai/prompts/ai_engineer';
 import { PRODUCT_ANALYST_SYSTEM_PROMPT } from '../lib/ai/prompts/product_analyst';
 import { BUSINESS_ANALYST_SYSTEM_PROMPT } from '../lib/ai/prompts/business_analyst';
 import { getUserTemplates, type UserTemplate } from '../lib/userTemplates';
-import { addRecentJD } from '../lib/db/queries';
+import { addRecentJD, createResumeVersion } from '../lib/db/queries';
 import { useJobContext } from '../store/jobContext';
 import JobContextBar from './JobContextBar';
 import { extractJDKeywords, scoreResume, resumeToText } from '../lib/ats/scorer';
@@ -25,6 +25,7 @@ import { extractResumeJson } from '../lib/export/extract-json';
 
 const DiffViewer = lazy(() => import('./DiffViewer'));
 const ATSScorer = lazy(() => import('./ATSScorer'));
+const ResumePreviewModal = lazy(() => import('./ResumePreviewModal'));
 
 import dataSciTemplate from '../templates/data_scientist.json';
 import dataAnalystTemplate from '../templates/data_analyst.json';
@@ -78,6 +79,7 @@ export default function AIGeneratePanel() {
   const [selectedSlug, setSelectedSlug] = useState('');
   const [company, setCompany] = useState('');
   const [jobTitle, setJobTitle] = useState('');
+  const [jobLocation, setJobLocation] = useState('');
   const [jobDescription, setJobDescription] = useState('');
   const [tone, setTone] = useState<Tone>('balanced');
   const [lockedSections, setLockedSections] = useState<string[]>([]);
@@ -116,6 +118,7 @@ export default function AIGeneratePanel() {
     if (!company && !jobTitle && !jobDescription) {
       setCompany(activeJob.company);
       setJobTitle(activeJob.roleTitle);
+      setJobLocation(activeJob.location ?? '');
       setJobDescription(activeJob.jobDescription);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -253,6 +256,23 @@ export default function AIGeneratePanel() {
   const handleAccept = (content: string) => {
     setAcceptedContent(content);
     setStep(4);
+
+    // Persist the version so it appears in JobTracker → Recently Generated
+    try {
+      createResumeVersion({
+        template_slug: selectedSlug || 'custom',
+        content,
+        ats_score: atsScore ?? 0,
+        provider_used: activeProvider ?? '',
+        tokens_used: tokensUsed,
+        label: company ? `${selectedTemplate?.role ?? jobTitle} @ ${company}` : (selectedTemplate?.role ?? jobTitle),
+        is_active: 1,
+        target_company: company || undefined,
+        target_role: (selectedTemplate?.role ?? jobTitle) || undefined,
+        is_applied: false,
+      } as Parameters<typeof createResumeVersion>[0]);
+    } catch { /* best-effort */ }
+
     addToast('success', 'Resume version accepted and saved');
   };
 
@@ -366,18 +386,18 @@ export default function AIGeneratePanel() {
             company={company}
             roleTitle={jobTitle}
             jobDescription={jobDescription}
-            onApply={(c, r, jd) => { setCompany(c); setJobTitle(r); setJobDescription(jd); }}
-            onPin={() => setActiveJob({ company, roleTitle: jobTitle, jobDescription })}
+            onApply={(c, r, loc, jd) => { setCompany(c); setJobTitle(r); setJobLocation(loc); setJobDescription(jd); }}
+            onPin={() => setActiveJob({ company, roleTitle: jobTitle, location: jobLocation, jobDescription })}
           />
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1.5">
                 Company Name
               </label>
               <input
                 type="text" value={company} onChange={e => setCompany(e.target.value)}
-                placeholder="e.g. Google, OpenAI..."
+                placeholder="Google, OpenAI…"
                 className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm
                            text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-blue-500
                            focus:ring-1 focus:ring-blue-500 transition-colors"
@@ -389,7 +409,19 @@ export default function AIGeneratePanel() {
               </label>
               <input
                 type="text" value={jobTitle} onChange={e => setJobTitle(e.target.value)}
-                placeholder={`e.g. Senior ${selectedTemplate.role}`}
+                placeholder={`Senior ${selectedTemplate.role}…`}
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm
+                           text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-blue-500
+                           focus:ring-1 focus:ring-blue-500 transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1.5">
+                Location
+              </label>
+              <input
+                type="text" value={jobLocation} onChange={e => setJobLocation(e.target.value)}
+                placeholder="Remote, NYC, SF…"
                 className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm
                            text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-blue-500
                            focus:ring-1 focus:ring-blue-500 transition-colors"
@@ -693,6 +725,7 @@ function ExportMenu({ content, role, company, excludedSections }: {
 }) {
   const [exporting, setExporting] = useState<string | null>(null);
   const [pageFormat, setPageFormat] = useState<'letter' | 'a4'>('letter');
+  const [showPreview, setShowPreview] = useState(false);
   const { addToast } = useAppStore();
 
   const handleExport = async (format: 'docx' | 'pdf' | 'txt') => {
@@ -718,44 +751,77 @@ function ExportMenu({ content, role, company, excludedSections }: {
   ];
 
   return (
-    <div className="flex flex-col gap-3">
-      {/* Page format selector (PDF / DOCX) */}
-      <div className="flex items-center gap-3">
-        <span className="text-xs text-slate-400 whitespace-nowrap">Page size</span>
-        <select
-          value={pageFormat}
-          onChange={e => setPageFormat(e.target.value as 'letter' | 'a4')}
-          aria-label="Page size"
-          title="Page size"
-          className="flex-1 bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-3 py-1.5
-                     focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+    <>
+      <div className="flex flex-col gap-3">
+        {/* Page format selector (PDF / DOCX) */}
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-slate-400 whitespace-nowrap">Page size</span>
+          <select
+            value={pageFormat}
+            onChange={e => setPageFormat(e.target.value as 'letter' | 'a4')}
+            aria-label="Page size"
+            title="Page size"
+            className="flex-1 bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-3 py-1.5
+                       focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+          >
+            <option value="letter">Letter (8.5 × 11 in) — US Standard</option>
+            <option value="a4">A4 (210 × 297 mm) — International</option>
+          </select>
+        </div>
+
+        {/* Preview button */}
+        <button
+          type="button"
+          onClick={() => setShowPreview(true)}
+          disabled={!!exporting}
+          className="w-full flex items-center justify-center gap-2 py-2.5 bg-slate-800 hover:bg-slate-700
+                     border border-slate-700 rounded-xl text-xs text-slate-300 hover:text-slate-100
+                     transition-colors disabled:opacity-50"
         >
-          <option value="letter">Letter (8.5 × 11 in) — US Standard</option>
-          <option value="a4">A4 (210 × 297 mm) — International</option>
-        </select>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+          </svg>
+          Preview before downloading
+        </button>
+
+        <div className="grid grid-cols-3 gap-3">
+          {formats.map(({ id, label, sub }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => handleExport(id)}
+              disabled={!!exporting}
+              className="flex flex-col items-center gap-2 p-4 bg-slate-900 hover:bg-slate-800 border border-slate-800
+                         rounded-xl text-sm transition-all disabled:opacity-50 group"
+            >
+              {exporting === id ? (
+                <span className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <DownloadIcon size={18} className="text-slate-500 group-hover:text-blue-400 transition-colors" />
+              )}
+              <span className="font-medium text-slate-200 uppercase text-xs">{label}</span>
+              <span className="text-xs text-slate-500">{sub}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
-        {formats.map(({ id, label, sub }) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => handleExport(id)}
-            disabled={!!exporting}
-            className="flex flex-col items-center gap-2 p-4 bg-slate-900 hover:bg-slate-800 border border-slate-800
-                       rounded-xl text-sm transition-all disabled:opacity-50 group"
-          >
-            {exporting === id ? (
-              <span className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <DownloadIcon size={18} className="text-slate-500 group-hover:text-blue-400 transition-colors" />
-            )}
-            <span className="font-medium text-slate-200 uppercase text-xs">{label}</span>
-            <span className="text-xs text-slate-500">{sub}</span>
-          </button>
-        ))}
-      </div>
-    </div>
+      {showPreview && (
+        <Suspense fallback={null}>
+          <ResumePreviewModal
+            content={content}
+            role={role}
+            company={company}
+            excludedSections={excludedSections}
+            initialFormat={pageFormat}
+            onClose={() => setShowPreview(false)}
+          />
+        </Suspense>
+      )}
+    </>
   );
 }
 

@@ -4,6 +4,7 @@ import { persist } from 'zustand/middleware';
 export interface JobTarget {
   company: string;
   roleTitle: string;
+  location: string;
   jobDescription: string;
 }
 

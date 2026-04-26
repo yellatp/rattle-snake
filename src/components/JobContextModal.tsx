@@ -9,6 +9,7 @@ export default function JobContextModal() {
 
   const [company, setCompany]               = useState('');
   const [roleTitle, setRoleTitle]           = useState('');
+  const [location, setLocation]             = useState('');
   const [jobDescription, setJobDescription] = useState('');
   const [recentJDs, setRecentJDs]           = useState<ReturnType<typeof getRecentJDs>>([]);
   const companyRef = useRef<HTMLInputElement>(null);
@@ -18,6 +19,7 @@ export default function JobContextModal() {
     if (modalOpen) {
       setCompany(active?.company ?? '');
       setRoleTitle(active?.roleTitle ?? '');
+      setLocation(active?.location ?? '');
       setJobDescription(active?.jobDescription ?? '');
       setRecentJDs(getRecentJDs());
       setTimeout(() => companyRef.current?.focus(), 50);
@@ -39,12 +41,13 @@ export default function JobContextModal() {
       closeModal();
       return;
     }
-    setActive({ company: company.trim(), roleTitle: roleTitle.trim(), jobDescription });
+    setActive({ company: company.trim(), roleTitle: roleTitle.trim(), location: location.trim(), jobDescription });
   };
 
-  const loadRecent = (jd: JobTarget) => {
+  const loadRecent = (jd: ReturnType<typeof getRecentJDs>[0]) => {
     setCompany(jd.company);
     setRoleTitle(jd.roleTitle);
+    setLocation('');
     setJobDescription(jd.jobDescription);
   };
 
@@ -137,6 +140,22 @@ export default function JobContextModal() {
                            focus:ring-1 focus:ring-blue-500/30 transition-colors"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1.5">
+              Location
+              <span className="normal-case font-normal text-slate-600 ml-1">— city, state, remote, or hybrid</span>
+            </label>
+            <input
+              type="text"
+              value={location}
+              onChange={e => setLocation(e.target.value)}
+              placeholder="San Francisco, CA · Remote · Hybrid NYC"
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm
+                         text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-blue-500
+                         focus:ring-1 focus:ring-blue-500/30 transition-colors"
+            />
           </div>
 
           <div>

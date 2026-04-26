@@ -1,9 +1,8 @@
 import { useAppStore, keyStore } from '../../store/app';
 import { useProfileStore } from '../../store/profiles';
-import { useJobContext } from '../../store/jobContext';
 import {
   DashboardIcon, GenerateIcon, ApplicationsIcon,
-  InterviewIcon, SettingsIcon, UserIcon, TargetIcon,
+  InterviewIcon, SettingsIcon, UserIcon,
 } from './Icons';
 
 interface NavItem {
@@ -39,7 +38,6 @@ interface SidebarProps {
 export default function Sidebar({ currentPath }: SidebarProps) {
   const { activeProvider, providers } = useAppStore();
   const { getActiveProfile } = useProfileStore();
-  const { active: activeJob, openModal } = useJobContext();
   const hasKey = typeof window !== 'undefined' && !!keyStore.get(activeProvider);
   const activeProfile = getActiveProfile();
 
@@ -63,40 +61,6 @@ export default function Sidebar({ currentPath }: SidebarProps) {
             <div className="text-[10px] text-slate-600 tracking-widest uppercase">Career Intelligence Assistant</div>
           </div>
         </div>
-      </div>
-
-      {/* Active Job Target */}
-      <div className="px-2 py-2 border-b border-slate-800/60">
-        <button
-          type="button"
-          onClick={openModal}
-          title="Active job target — click to set or edit"
-          className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-slate-800/70
-                     transition-colors group text-left"
-        >
-          <div className={`w-1.5 h-1.5 rounded-full shrink-0 transition-colors ${
-            activeJob ? 'bg-blue-400' : 'bg-slate-700 group-hover:bg-slate-500'
-          }`} />
-          <div className="flex-1 min-w-0">
-            {activeJob ? (
-              <>
-                <div className="text-xs text-slate-300 font-medium truncate leading-tight">
-                  {activeJob.company || activeJob.roleTitle}
-                </div>
-                {activeJob.company && activeJob.roleTitle && (
-                  <div className="text-[10px] text-slate-600 truncate leading-tight mt-0.5">
-                    {activeJob.roleTitle}
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="text-xs text-slate-600 group-hover:text-slate-400 transition-colors">
-                Set job target
-              </div>
-            )}
-          </div>
-          <TargetIcon size={12} className="text-slate-700 group-hover:text-slate-500 transition-colors shrink-0" />
-        </button>
       </div>
 
       {/* Navigation */}

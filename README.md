@@ -21,13 +21,25 @@ Open [http://localhost:4321](http://localhost:4321). Add an API key in **Setting
 
 ## What it does
 
-- **Resume generation** — 9 role-specific templates, ATS gap analysis, iterative scoring loop, side-by-side diff viewer
+- **Resume generation** — 9 role-specific templates with Preview / Edit before use; ATS gap analysis; iterative scoring loop; side-by-side diff viewer; PDF preview with Letter/A4 toggle
+- **Profile system** — BYOP (Bring Your Own Profile): parse a DOCX/TXT resume to auto-fill contact, experience, education, skills, and projects; PIN-protected profiles; multiple profile slots
+- **Template library** — Visual editor and raw JSON editor per template; Fill from My Resume; Customize → Save as Mine; `Preview / Edit` and `Use →` buttons on every card
 - **Cover letters** — 4 styles (standard, career change, referral, cold outreach), streaming generation, save and export
-- **Interview prep** — AI-built prep plan (skill map, topics, practice projects) + Q&A answering from your bio
-- **Job tracking** — drag-and-drop kanban board across 6 pipeline stages
-- **Job Context** — pin a target role once; resume, cover letter, and interview prep all auto-fill from it
+- **Interview prep** — AI-built prep plan (skill map, topics, practice projects) + Q&A answering from your bio; Saved Plans in reverse chronological order
+- **Job tracking** — Drag-and-drop kanban (Applied → Phone Screen → Interview → Decision); interview round tracked with manual `+` / `−` buttons; reverse-chronological columns (top-5 shown, "View All" links to spreadsheet page)
+- **Applications spreadsheet** — `/applications` page: full sortable/filterable table, inline status and round editing, CSV export
+- **Job Context bar** — Paste a job description once inside Generate or Interview Prep; company, title, location, and JD auto-fill across tools
+- **Settings** — Compact 4-column provider grid (7 providers: Anthropic, OpenAI, Gemini, xAI, DeepSeek, Kimi, Qwen); click any tile to expand its key/model/test controls
 
 Everything runs in the browser. No server. No database. Nothing leaves your machine.
+
+---
+
+## Job tracking fields
+
+Each application tracks: **Company · Role · Location · Status · Interview Round · Salary Range · Notes · Date Applied**
+
+Location is captured when adding a card, when using the Job Context bar (company + title + location + JD), or when editing an application in the detail panel.
 
 ---
 

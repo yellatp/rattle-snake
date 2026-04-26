@@ -26,3 +26,13 @@ pnpm-debug.log*
 
 # user-uploaded resume templates (personal files, not for repo)
 src/user-templates/
+
+# dev tooling / test infrastructure (local only)
+CLAUDE.md
+TEST.md
+tests/
+vitest.config.ts
+playwright.config.ts
+playwright-report/
+test-results/
+coverage/

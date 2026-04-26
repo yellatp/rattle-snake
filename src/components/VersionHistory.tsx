@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { getResumeVersions, updateResumeVersion, type ResumeVersion } from '../lib/db/queries';
+import { getResumeVersions, updateResumeVersion } from '../lib/db/queries';
+import type { ResumeVersion } from '../lib/db/schema';
 import { formatDistanceToNow } from 'date-fns';
 import { ClipboardIcon, EyeIcon } from './ui/Icons';
 
@@ -23,6 +24,13 @@ export default function VersionHistory({ applicationId, onRestore }: Props) {
     updateResumeVersion(version.id, { is_active: 1 });
     setVersions(prev => prev.map(v => ({ ...v, is_active: v.id === version.id ? 1 : 0 })));
     onRestore?.(version);
+  };
+
+  const handleToggleApplied = (e: React.MouseEvent, version: ResumeVersion) => {
+    e.stopPropagation();
+    const next = !version.is_applied;
+    updateResumeVersion(version.id, { is_applied: next } as never);
+    setVersions(prev => prev.map(v => v.id === version.id ? { ...v, is_applied: next } : v));
   };
 
   if (versions.length === 0) {
@@ -74,6 +82,11 @@ export default function VersionHistory({ applicationId, onRestore }: Props) {
                         LATEST
                       </span>
                     )}
+                    {version.is_applied && (
+                      <span className="text-[10px] px-1.5 py-0.5 bg-green-900/40 text-green-400 border border-green-800/40 rounded-full">
+                        APPLIED
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center gap-3 mt-0.5">
                     <span className="text-xs text-slate-500">
@@ -96,6 +109,19 @@ export default function VersionHistory({ applicationId, onRestore }: Props) {
 
               <div className="flex items-center gap-2">
                 <button
+                  type="button"
+                  onClick={(e) => handleToggleApplied(e, version)}
+                  title={version.is_applied ? 'Mark as not applied' : 'Mark as applied'}
+                  className={`px-2.5 py-1 rounded-lg text-xs transition-colors border ${
+                    version.is_applied
+                      ? 'bg-green-900/30 border-green-800/40 text-green-400 hover:bg-green-900/50'
+                      : 'bg-slate-800 border-slate-700 text-slate-500 hover:text-slate-300'
+                  }`}
+                >
+                  {version.is_applied ? '✓ Applied' : 'Mark Applied'}
+                </button>
+                <button
+                  type="button"
                   onClick={(e) => { e.stopPropagation(); setPreviewId(previewId === version.id ? null : version.id); }}
                   className="p-1.5 text-slate-500 hover:text-slate-300 transition-colors"
                   title="Preview"
@@ -104,6 +130,7 @@ export default function VersionHistory({ applicationId, onRestore }: Props) {
                 </button>
                 {version.is_active !== 1 && (
                   <button
+                    type="button"
                     onClick={(e) => { e.stopPropagation(); handleRestore(version); }}
                     className="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg text-xs transition-colors"
                   >

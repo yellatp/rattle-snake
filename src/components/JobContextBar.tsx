@@ -14,8 +14,8 @@ interface Props {
   company: string;
   roleTitle: string;
   jobDescription: string;
-  /** Callbacks to fill the parent form */
-  onApply: (company: string, roleTitle: string, jobDescription: string) => void;
+  /** Callbacks to fill the parent form — location is the stored location from the active job */
+  onApply: (company: string, roleTitle: string, location: string, jobDescription: string) => void;
   /** Save the current form values as the active job */
   onPin: () => void;
 }
@@ -43,11 +43,16 @@ export default function JobContextBar({ company, roleTitle, jobDescription, onAp
       {/* Label */}
       <div className="flex-1 min-w-0">
         {active ? (
-          <span className="text-slate-300 font-medium truncate">
-            {[active.company, active.roleTitle].filter(Boolean).join(' · ') || 'Job target set'}
-          </span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-slate-300 font-medium truncate">
+              {[active.company, active.roleTitle].filter(Boolean).join(' · ') || 'Job target set'}
+            </span>
+            {active.location && (
+              <span className="text-[10px] text-slate-500 font-mono truncate">{active.location}</span>
+            )}
+          </div>
         ) : (
-          <span className="text-slate-600">No active job target</span>
+          <span className="text-slate-600">Paste a job here — all tools auto-fill from it</span>
         )}
       </div>
 
@@ -55,7 +60,7 @@ export default function JobContextBar({ company, roleTitle, jobDescription, onAp
       {active && !isApplied && (
         <button
           type="button"
-          onClick={() => onApply(active.company, active.roleTitle, active.jobDescription)}
+          onClick={() => onApply(active.company, active.roleTitle, active.location ?? '', active.jobDescription)}
           className="flex items-center gap-1 px-2.5 py-1 bg-blue-600/20 hover:bg-blue-600/40
                      border border-blue-700/30 rounded-lg text-blue-400 hover:text-blue-300
                      transition-colors font-medium shrink-0"

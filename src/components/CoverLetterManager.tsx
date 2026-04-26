@@ -34,6 +34,7 @@ export default function CoverLetterManager() {
   const [selectedApp, setSelectedApp] = useState('');
   const [company, setCompany] = useState('');
   const [role, setRole] = useState('');
+  const [jobLocation, setJobLocation] = useState('');
   const [jobDescription, setJobDescription] = useState('');
   const [candidateName, setCandidateName] = useState('');
   const [generatedContent, setGeneratedContent] = useState('');
@@ -183,8 +184,8 @@ Write a cover letter following the system instructions.
           company={company}
           roleTitle={role}
           jobDescription={jobDescription}
-          onApply={(c, r, jd) => { setCompany(c); setRole(r); setJobDescription(jd); }}
-          onPin={() => setActiveJob({ company, roleTitle: role, jobDescription })}
+          onApply={(c, r, loc, jd) => { setCompany(c); setRole(r); setJobLocation(loc); setJobDescription(jd); }}
+          onPin={() => setActiveJob({ company, roleTitle: role, location: jobLocation, jobDescription })}
         />
 
         {/* Link to application */}

@@ -68,6 +68,7 @@ The extension is the missing piece — once it ships, the full loop is closed: d
 | :--- | :--- |
 | Hierarchical prompt system | Sector → Domain → Role → Level composable prompts (see above) |
 | Rattle-Snake Browser Extension | Auto-fill job applications; open-source, community-built |
+| Extension: auto-read job postings | Extension detects active job posting pages and auto-extracts JD text into Rattle-Snake — no copy-paste |
 | Seniority auto-detection | Infer level from resume dates; skip the manual selector |
 | Multi-page PDF layout | Better handling for senior resumes exceeding one page |
 | LinkedIn profile import | Pre-fill resume template from a LinkedIn URL |

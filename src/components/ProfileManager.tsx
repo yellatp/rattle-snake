@@ -1,8 +1,202 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useProfileStore, hashPin, verifyPin, type UserProfile } from '../store/profiles';
 import { useAppStore } from '../store/app';
+import { parseDocxText } from '../lib/userTemplates';
 
 type View = 'list' | 'edit' | 'create';
+
+// ── Resume Parser ─────────────────────────────────────────────────────────────
+
+function buildBioFromTemplate(t: ReturnType<typeof parseDocxText>): string {
+  const parts: string[] = [];
+
+  if (t.sections.summary.content.trim()) {
+    parts.push(`[Summary]\n${t.sections.summary.content.trim()}`);
+  }
+
+  if (t.sections.experience.length > 0) {
+    const lines = t.sections.experience.map(e =>
+      `${e.title} | ${e.company}${e.location ? ' | ' + e.location : ''} | ${e.dates}\n` +
+      e.bullets.map(b => `  • ${b}`).join('\n')
+    );
+    parts.push(`[Experience]\n${lines.join('\n\n')}`);
+  }
+
+  if (t.sections.education.length > 0) {
+    const lines = t.sections.education.map(e =>
+      `${e.degree}${e.institution ? ' | ' + e.institution : ''}${e.year ? ' | ' + e.year : ''}`
+    );
+    parts.push(`[Education]\n${lines.join('\n')}`);
+  }
+
+  if (t.sections.skills.categories.length > 0) {
+    const lines = t.sections.skills.categories.map(c => `${c.name}: ${c.items.join(', ')}`);
+    parts.push(`[Skills]\n${lines.join('\n')}`);
+  }
+
+  if (t.sections.certifications.length > 0) {
+    parts.push(`[Certifications]\n${t.sections.certifications.join('\n')}`);
+  }
+
+  return parts.join('\n\n');
+}
+
+interface ParsedFields {
+  fullName?: string;
+  email?: string;
+  phone?: string;
+  location?: string;
+  linkedin?: string;
+  github?: string;
+  portfolio?: string;
+  bio?: string;
+  resumeSections?: UserProfile['resumeSections'];
+}
+
+function ResumeParser({ onImport }: { onImport: (fields: ParsedFields) => void }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [status, setStatus] = useState<'idle' | 'parsing' | 'done' | 'error'>('idle');
+  const [preview, setPreview] = useState<ParsedFields | null>(null);
+  const [errorMsg, setErrorMsg] = useState('');
+
+  const handleFile = async (file: File) => {
+    setStatus('parsing');
+    setPreview(null);
+    setErrorMsg('');
+
+    try {
+      let rawText = '';
+
+      if (file.name.endsWith('.docx')) {
+        const mammoth = await import('mammoth');
+        const buffer = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer: buffer });
+        rawText = result.value;
+      } else if (file.name.endsWith('.txt')) {
+        rawText = await file.text();
+      } else {
+        throw new Error('Only .docx and .txt files are supported');
+      }
+
+      const parsed = parseDocxText(rawText, 'profile');
+      const c = parsed.contact ?? {};
+      const s = parsed.sections;
+
+      const fields: ParsedFields = {
+        fullName:  c.name      || undefined,
+        email:     c.email     || undefined,
+        phone:     c.phone     || undefined,
+        location:  c.location  || undefined,
+        linkedin:  c.linkedin  || undefined,
+        github:    c.github    || undefined,
+        portfolio: c.portfolio || undefined,
+        bio:       buildBioFromTemplate(parsed) || undefined,
+        resumeSections: {
+          summary:        s.summary.content || undefined,
+          experience:     s.experience.length  ? s.experience  : undefined,
+          education:      s.education.length   ? s.education   : undefined,
+          skills:         s.skills.categories.length ? s.skills : undefined,
+          certifications: s.certifications.length    ? s.certifications : undefined,
+        },
+      };
+
+      setPreview(fields);
+      setStatus('done');
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'Parse failed');
+      setStatus('error');
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
+  };
+
+  return (
+    <div className="border-t border-slate-800 pt-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+          BYOP — Parse Resume
+        </p>
+        <span className="text-[10px] text-slate-600">.docx · .txt</span>
+      </div>
+
+      <div
+        onDrop={handleDrop}
+        onDragOver={e => e.preventDefault()}
+        className="border-2 border-dashed border-slate-700 hover:border-blue-600/50 rounded-lg p-4 text-center
+                   cursor-pointer transition-colors"
+        onClick={() => fileRef.current?.click()}
+      >
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".docx,.txt"
+          title="Upload resume file (.docx or .txt)"
+          aria-label="Upload resume file"
+          className="hidden"
+          onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ''; }}
+        />
+        {status === 'parsing' ? (
+          <p className="text-xs text-blue-400 animate-pulse">Parsing resume…</p>
+        ) : (
+          <p className="text-xs text-slate-500">
+            Drop your resume here or <span className="text-blue-400">click to browse</span>
+          </p>
+        )}
+      </div>
+
+      {status === 'error' && (
+        <p className="text-xs text-red-400">{errorMsg}</p>
+      )}
+
+      {status === 'done' && preview && (
+        <div className="rounded-lg bg-slate-800/60 border border-slate-700 p-3 space-y-2 text-xs">
+          <p className="text-slate-400 font-medium">Extracted fields — review before importing:</p>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-slate-300">
+            {preview.fullName  && <span><span className="text-slate-500">Name: </span>{preview.fullName}</span>}
+            {preview.email     && <span><span className="text-slate-500">Email: </span>{preview.email}</span>}
+            {preview.phone     && <span><span className="text-slate-500">Phone: </span>{preview.phone}</span>}
+            {preview.location  && <span><span className="text-slate-500">Location: </span>{preview.location}</span>}
+            {preview.linkedin  && <span className="col-span-2"><span className="text-slate-500">LinkedIn: </span>{preview.linkedin}</span>}
+            {preview.github    && <span className="col-span-2"><span className="text-slate-500">GitHub: </span>{preview.github}</span>}
+          </div>
+          {preview.resumeSections && (
+            <div className="mt-2 flex flex-wrap gap-2 text-[10px]">
+              {preview.resumeSections.experience?.length ? (
+                <span className="px-2 py-0.5 bg-blue-900/30 text-blue-400 rounded-full">
+                  {preview.resumeSections.experience.length} work exp
+                </span>
+              ) : null}
+              {preview.resumeSections.education?.length ? (
+                <span className="px-2 py-0.5 bg-purple-900/30 text-purple-400 rounded-full">
+                  {preview.resumeSections.education.length} education
+                </span>
+              ) : null}
+              {preview.resumeSections.skills?.categories?.length ? (
+                <span className="px-2 py-0.5 bg-green-900/30 text-green-400 rounded-full">
+                  {preview.resumeSections.skills.categories.length} skill categories
+                </span>
+              ) : null}
+              {preview.resumeSections.summary ? (
+                <span className="px-2 py-0.5 bg-amber-900/30 text-amber-400 rounded-full">summary</span>
+              ) : null}
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => { onImport(preview); setStatus('idle'); setPreview(null); }}
+            className="mt-2 px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-medium transition-colors"
+          >
+            Import into Profile
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function Initials({ name }: { name: string }) {
   const parts = name.trim().split(/\s+/);
@@ -43,11 +237,13 @@ function Field({
 function ProfileForm({
   initial,
   onSave,
+  onQuickSave,
   onCancel,
   isNew = false,
 }: {
   initial: Partial<UserProfile>;
   onSave: (data: Partial<UserProfile>) => void;
+  onQuickSave?: (data: Partial<UserProfile>) => void;
   onCancel: () => void;
   isNew?: boolean;
 }) {
@@ -59,6 +255,26 @@ function ProfileForm({
 
   const set = (key: keyof UserProfile, val: string | boolean) =>
     setForm(prev => ({ ...prev, [key]: val }));
+
+  const handleParsedImport = (fields: ParsedFields) => {
+    setForm(prev => {
+      const merged = {
+        ...prev,
+        ...(fields.fullName       ? { fullName:       fields.fullName       } : {}),
+        ...(fields.email          ? { email:          fields.email          } : {}),
+        ...(fields.phone          ? { phone:          fields.phone          } : {}),
+        ...(fields.location       ? { location:       fields.location       } : {}),
+        ...(fields.linkedin       ? { linkedin:       fields.linkedin       } : {}),
+        ...(fields.github         ? { github:         fields.github         } : {}),
+        ...(fields.portfolio      ? { portfolio:      fields.portfolio      } : {}),
+        ...(fields.bio            ? { bio:            fields.bio            } : {}),
+        ...(fields.resumeSections ? { resumeSections: fields.resumeSections } : {}),
+      };
+      // Persist to store immediately so AI generation picks up resumeSections
+      onQuickSave?.(merged);
+      return merged;
+    });
+  };
 
   const handleSave = async () => {
     const updates: Partial<UserProfile> = { ...form };
@@ -110,12 +326,14 @@ function ProfileForm({
         <textarea
           value={form.bio ?? ''}
           onChange={(e) => set('bio', e.target.value)}
-          rows={6}
-          placeholder="Career arc, motivations, key wins — used for cover letters and Q&A answers..."
+          rows={10}
+          placeholder="Career arc, motivations, key wins — or parse your resume above to auto-fill..."
           className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-100
                      placeholder:text-slate-600 focus:outline-none focus:border-blue-500 resize-y font-mono leading-relaxed"
         />
       </div>
+
+      <ResumeParser onImport={handleParsedImport} />
 
       {/* PIN protection */}
       <div className="border-t border-slate-800 pt-4 space-y-3">
@@ -124,12 +342,19 @@ function ProfileForm({
             <p className="text-sm font-medium text-slate-300">PIN Protection</p>
             <p className="text-xs text-slate-500">Require a PIN to switch to this profile</p>
           </div>
+          {/* Standard toggle — w-11/border-2 gives 40px inner track; w-5 thumb fills it exactly */}
           <button
             type="button"
+            title={enablePin ? 'Disable PIN protection' : 'Enable PIN protection'}
+            aria-label={enablePin ? 'Disable PIN protection' : 'Enable PIN protection'}
             onClick={() => { setEnablePin(p => !p); setPin(''); setPinConfirm(''); setPinError(''); }}
-            className={`relative w-10 h-5 rounded-full transition-colors ${enablePin ? 'bg-blue-600' : 'bg-slate-700'}`}
+            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border-2 border-transparent
+                        cursor-pointer transition-colors duration-200 focus:outline-none focus-visible:ring-2
+                        focus-visible:ring-blue-500 ${enablePin ? 'bg-blue-600' : 'bg-slate-600'}`}
           >
-            <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${enablePin ? 'translate-x-5' : 'translate-x-0.5'}`} />
+            <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md
+                              ring-0 transition duration-200 ease-in-out
+                              ${enablePin ? 'translate-x-5' : 'translate-x-0'}`} />
           </button>
         </div>
         {enablePin && (
@@ -265,6 +490,10 @@ export default function ProfileManager() {
     setEditingId(null);
   };
 
+  const handleQuickSave = (data: Partial<UserProfile>) => {
+    if (editingId) updateProfile(editingId, data);
+  };
+
   const handleDelete = (id: string) => {
     if (!confirm('Delete this profile? This cannot be undone.')) return;
     deleteProfile(id);
@@ -306,6 +535,7 @@ export default function ProfileManager() {
           <ProfileForm
             initial={editingProfile}
             onSave={handleEditSave}
+            onQuickSave={handleQuickSave}
             onCancel={() => { setView('list'); setEditingId(null); }}
           />
         </div>

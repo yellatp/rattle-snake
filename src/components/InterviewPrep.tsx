@@ -783,7 +783,10 @@ export default function InterviewPrep() {
         }];
       } catch { return []; }
     });
-    setSavedPreps(parsed);
+    // Most recently saved first
+    setSavedPreps(parsed.sort((a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    ));
   }, []);
 
   const handleAppSelect = (appId: string) => {
@@ -955,8 +958,8 @@ export default function InterviewPrep() {
                 company={company}
                 roleTitle={roleTitle}
                 jobDescription={jobDescription}
-                onApply={(c, r, jd) => { setCompany(c); setRoleTitle(r); setJobDescription(jd); }}
-                onPin={() => setActiveJob({ company, roleTitle, jobDescription })}
+                onApply={(c, r, _loc, jd) => { setCompany(c); setRoleTitle(r); setJobDescription(jd); }}
+                onPin={() => setActiveJob({ company, roleTitle, location: '', jobDescription })}
               />
 
               {/* Recent JD quick-fill */}

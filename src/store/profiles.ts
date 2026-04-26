@@ -23,6 +23,29 @@ export interface UserProfile {
   // Professional
   currentTitle: string;
   bio: string;
+
+  // Optional structured resume sections — populated when user parses their resume via BYOP
+  resumeSections?: {
+    summary?: string;
+    experience?: Array<{
+      id: string;
+      title: string;
+      company: string;
+      location: string;
+      dates: string;
+      bullets: string[];
+      locked: boolean;
+    }>;
+    education?: Array<{
+      id: string;
+      degree: string;
+      institution: string;
+      location: string;
+      year: string;
+    }>;
+    skills?: { categories: Array<{ name: string; items: string[] }> };
+    certifications?: string[];
+  };
 }
 
 export async function hashPin(pin: string): Promise<string> {

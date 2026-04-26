@@ -1,4 +1,17 @@
 /**
+ * Sanitize text content within a parsed JSON string by replacing typographic
+ * characters that don't belong in plain-text resume content.
+ */
+export function sanitizeResumeText(text: string): string {
+  return text
+    .replace(/—/g, ', ')   // em-dash → comma-space
+    .replace(/–/g, '-')    // en-dash → hyphen
+    .replace(/‘|’/g, "'") // smart single quotes
+    .replace(/“|”/g, '"') // smart double quotes
+    .replace(/…/g, '...');  // ellipsis
+}
+
+/**
  * Extract the JSON object from AI output that may contain:
  * - <thinking>...</thinking> reasoning blocks
  * - Prose / section headings before the JSON (e.g. "## Output JSON")
@@ -23,8 +36,11 @@ export function extractResumeJson(text: string): string {
   const start = s.indexOf('{');
   const end = s.lastIndexOf('}');
   if (start !== -1 && end !== -1 && end > start) {
-    return s.slice(start, end + 1);
+    const raw = s.slice(start, end + 1);
+    // Replace typographic characters inside JSON string values only
+    // (sanitize the raw text before it reaches the parser)
+    return sanitizeResumeText(raw);
   }
 
-  return s;
+  return sanitizeResumeText(s);
 }
