@@ -3,13 +3,13 @@ import { loadConfig } from "./config.js";
 import { createApp } from "./app.js";
 
 const config = loadConfig();
-const { app } = createApp();
+const { app, llm } = createApp();
 
 const server = serve(
   { fetch: app.fetch, port: config.port },
   (info) => {
     console.log(`[rattle-snake-v2] API listening on http://localhost:${info.port}`);
-    console.log(`[rattle-snake-v2] LLM provider: ${config.llm.provider} (${config.llm.model})`);
+    console.log(`[rattle-snake-v2] LLM provider: ${llm.provider} (${llm.model})`);
   },
 );
 

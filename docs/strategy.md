@@ -18,8 +18,8 @@
 | Sprint | Goal (from PRD milestone) | Key deliverables | Status |
 |---|---|---|---|
 | **Sprint 0** | M0 — Docs & planning | `docs/PRD.md`, `docs/strategy.md`, `docs/feature-tracker.md`, `docs/architecture.md`, `docs/roadmap.md` | **DONE** |
-| **Sprint 1** | M1 — Core complete (P1) | Automated tests, README, Dockerize, web-start verification, git init + initial commit | In progress |
-| **Sprint 2** | M2a — Real-LLM validation (P1#1) | Full pipeline against Ollama/vLLM; fix format/redress/blueprint/rewriter issues found | Planned |
+| **Sprint 1** | M1 — Core complete (P1) | Automated tests, README, Dockerize, web-start verification, git init + initial commit | **DONE** |
+| **Sprint 2** | M2a — Multi-provider LLM + real-LLM validation | **FR-6 provider layer** (OpenAI, Anthropic, Google, DeepSeek, Kimi, Grok, GroQ, Qwen, OpenRouter, Ollama, custom) + full pipeline against a real LLM; Docker image build verification | In progress |
 | **Sprint 3** | M2b — Production hardening (P2) | Basic auth, file upload (PDF/DOCX), export PDF/DOCX, rate limiting, prompt-injection guardrails | Planned |
 | **Sprint 4** | M2c — Observability & streaming (P2) | Token-level streaming, per-agent telemetry, playwright e2e | Planned |
 | **Sprint 5+** | M3 — Extensions (P3) | More domain committees, structured JSON output, multi-user separation, historical eval | Backlog |
@@ -37,7 +37,7 @@ Created the governance layer the team works from:
 
 **DoD:** all five docs exist and PRD IDs match the tracker.
 
-## 4. Sprint 1 — Core complete (P1) · IN PROGRESS
+## 4. Sprint 1 — Core complete (P1) · COMPLETE
 
 Goal: close every open "P1 — required to call the app complete" item from the handover.
 
@@ -51,20 +51,35 @@ Goal: close every open "P1 — required to call the app complete" item from the 
 | 1.6 | **Web start verification** | NFR-2 | `pnpm build` then `node ./dist/server/entry.mjs` serves the UI; smoke-test with API running. |
 | 1.7 | **git init + initial commit** | — | Repo initialized, `.gitignore` honored, single clean initial commit. |
 
-## 5. Sprint 2 — Real-LLM validation (P1#1) · PLANNED
+**Outcome:** all DoD met. 44 tests green, build 3/3, typecheck 4/4, prod-start verified, Docker compose validated, repo initialized (commits `30342c4`, `d6f9f99`). Details: `docs/sprint-tracker.md`.
 
-Goal: prove the pipeline against a real OpenAI-compatible model, not just the mock.
+## 5. Sprint 2 — Multi-provider LLM + real-LLM validation · IN PROGRESS
+
+**Part A — provider layer (FR-6), implemented 2026-08-12:** the app must support OpenAI, Anthropic, Google, DeepSeek, Kimi/Moonshot, Grok/xAI, GroQ, Qwen, OpenRouter, Ollama — plus any other provider via a generic OpenAI-compatible fallback. See PRD §4.6.
+
+| # | Task | PRD link | DoD |
+|---|---|---|---|
+| 2.1 | Provider abstraction (`LLMClient` interface) | FR-6.1 | All pipeline code calls only `llm.complete`; zero provider branches. |
+| 2.2 | Provider presets + dispatcher | FR-6.2, FR-6.6 | `LLM_PROVIDER=<name>` → correct base URL/auth/format/model; key env fallbacks; fail-fast errors. |
+| 2.3 | Native Anthropic adapter (Messages API) | FR-6.3 | `x-api-key`, `anthropic-version`, top-level `system`, `max_tokens`; parses `content[].text`. |
+| 2.4 | Native Google Gemini adapter | FR-6.4 | `generateContent`, `systemInstruction`, `?key=`; parses `candidates[].content.parts`. |
+| 2.5 | Generic fallback (custom / unknown name) | FR-6.5 | Any `LLM_BASE_URL` works as OpenAI-compatible `/chat/completions`. |
+| 2.6 | Provider unit tests | NFR-6 | `apps/api/src/llm/providers.test.ts` (20 tests) — payload shape, headers, parsing, errors, dispatch, presets. |
+| 2.7 | Docs sync | — | `.env.example`, README §model, architecture §11 table, feature-tracker FR-6, sprint-tracker. |
+
+**Part B — real-LLM validation (P1#1).** User chose to supply an OpenAI-compatible endpoint (base URL + key + model).
 
 | Task | How to verify |
 |---|---|
-| Point `LLM_BASE_URL`/`LLM_MODEL` at Ollama or vLLM | `pnpm dev:api` → `/health` shows provider/model. |
+| Point `LLM_BASE_URL`/`LLM_MODEL` at the supplied provider | `pnpm dev:api` → `/health` shows provider/model. |
 | Run CLI with real LLM | `pnpm debate -- --jd samples/fintech-jd.md --resume samples/candidate-resume.md --domain SWE --out out.md` |
 | Full UI flow | Create a run, watch SSE stream to `completed`, verdict + blueprint + rewritten resume render. |
 | Check response-format adherence | % turns with parsed `[STRONG HIRE/REJECT]`; watch redress retries fire. |
 | Check blueprint JSON parse rate | Ratio of LLM-path successes vs rule-based fallback. |
 | Check rewriter output quality | Objections resolved; no fabricated facts; `[ADD: ...]` placeholders where evidence is missing. |
+| Verify Docker image build | Start Docker Desktop, `docker compose up --build`, smoke-test api + web containers. |
 
-**DoD:** full pipeline completes against a real LLM; any format gaps found are fixed and re-tested; tracker updated.
+**DoD:** provider layer built + tested (Part A done); full pipeline completes against a real LLM; any format gaps found are fixed and re-tested; Docker image build verified; tracker + sprint tracker updated.
 
 ## 6. Sprint 3 — Production hardening (P2) · PLANNED
 

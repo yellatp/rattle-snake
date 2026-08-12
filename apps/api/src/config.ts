@@ -19,10 +19,16 @@ export function loadConfig() {
     port: int(env.API_PORT, 8787),
     databasePath: env.DATABASE_PATH ?? path.join(__dirname, "..", "data", "rattle-snake.db"),
     llm: {
-      provider: (env.LLM_PROVIDER ?? "openai") as "openai" | "mock",
-      baseUrl: env.LLM_BASE_URL ?? "http://localhost:11434/v1",
-      apiKey: env.LLM_API_KEY ?? "ollama",
-      model: env.LLM_MODEL ?? "llama3.1",
+      // Provider name: "openai" | "anthropic" | "google" | "deepseek" |
+      // "kimi" | "grok" | "groq" | "qwen" | "openrouter" | "ollama" |
+      // "vllm" | "lmstudio" | "localai" | "custom" | any unknown name
+      // (unknown = generic OpenAI-compatible). See llm/presets.ts (FR-6).
+      provider: env.LLM_PROVIDER ?? "openai",
+      // Optional overrides; when unset, the provider preset supplies defaults
+      // (base URL, model) and standard key env vars are consulted (FR-6.6).
+      baseUrl: env.LLM_BASE_URL,
+      apiKey: env.LLM_API_KEY,
+      model: env.LLM_MODEL,
       temperature: Number.parseFloat(env.LLM_TEMPERATURE ?? "0.3") || 0.3,
     },
     debate: {

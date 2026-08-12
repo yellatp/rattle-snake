@@ -36,10 +36,17 @@ A monorepo (pnpm + Turborepo) with three packages. The backend runs a long-lived
                │                              │
                ▼                              ▼
 ┌──────────────────────────┐    ┌──────────────────────────────┐
-│   Agent Definitions      │    │   LLM Client (single shared) │
-│  (pure data + prompts)   │    │  openai SDK → baseURL to     │
-│  packages/shared/agents  │    │  Ollama/vLLM/LocalAI or MOCK │
-└──────────────────────────┘    └──────────────────────────────┘
+│   Agent Definitions      │    │  LLM Provider Layer          │
+│  (pure data + prompts)   │    │  llm/client.ts → dispatcher  │
+│  packages/shared/agents  │    │  ├ openaiCompatible.ts       │
+└──────────────────────────┘    │  │   (OpenAI, DeepSeek, Kimi, │
+                               │  │    Grok, GroQ, Qwen,       │
+                               │  │    OpenRouter, Ollama,     │
+                               │  │    vLLM, LM Studio, any)   │
+                               │  ├ anthropic.ts  (Messages)   │
+                               │  ├ google.ts     (Gemini)     │
+                               │  └ mock.ts       (offline)    │
+                               └──────────────────────────────┘
                │
                ▼
 ┌──────────────────────────┐
@@ -73,7 +80,11 @@ rattle-snake-v2/
     │   │   ├── index.ts        # serve + graceful shutdown
     │   │   ├── app.ts          # createApp(): wiring, CORS, restart recovery
     │   │   ├── config.ts       # env → AppConfig
-    │   │   ├── llm/client.ts   # OpenAI-compatible client + mock provider
+    │   │   ├── llm/            # provider layer (FR-6)
+    │   │   │   ├── client.ts   #   createLLMClient() dispatcher + preset resolution
+    │   │   │   ├── types.ts    #   LLMClient interface (complete(system, user, opts))
+    │   │   │   ├── presets.ts  #   provider registry (base URL, model, key env, wire format)
+    │   │   │   ├── openaiCompatible.ts · anthropic.ts · google.ts · mock.ts · util.ts
     │   │   ├── events/bus.ts   # in-process pub/sub (SSE source)
     │   │   ├── db/store.ts     # better-sqlite3 JobStore
     │   │   ├── committee/      # nonNeutrality, agentExecutor, debateEngine,
@@ -132,7 +143,7 @@ Live channel — `JobEvent` union (`status | entry | verdict | blueprint | resum
 ## 4. Design principles
 
 1. **Agents are pure data + prompt functions** (`AgentConfig` + `buildAgentSystemPrompt`). No class holds memory; all memory lives in the shared `JobState.transcript`.
-2. **Single shared LLM client** — `createLLMClient()` from `apps/api/src/llm/client.ts`. One OpenAI-compatible client; swap `baseURL` (Ollama/vLLM/LocalAI/llama.cpp/LM Studio) with no other code change. Offline `mock` provider produces schema-compliant output so the whole pipeline runs in CI/demos.
+2. **Single shared LLM interface, many provider adapters** — every provider implements `complete(system, user, opts)` from `apps/api/src/llm/types.ts`. `createLLMClient()` (dispatcher) picks the adapter by `LLM_PROVIDER`: OpenAI-compatible family, native Anthropic Messages, native Gemini `generateContent`, or offline `mock`. Presets (base URL, model, key env var, wire format) live in `presets.ts`; `LLM_BASE_URL` / `LLM_MODEL` / `LLM_API_KEY` override them, and unknown provider names fall back to a generic OpenAI-compatible endpoint (FR-6).
 3. **Strong job isolation** — every evaluation is its own `JobState` + SQLite row; a crash mid-debate loses only in-flight turns (restart recovery marks orphans `failed`).
 4. **Forced non-neutrality is enforced twice** — in the system prompt (laws 1–4) AND by parsing (`parseDecision`) with a redress re-prompt loop; ultimate fallback inherits the agent's prior vote.
 5. **Domain templates are data** — adding a domain = one new file in `packages/shared/src/agents/`.
@@ -207,10 +218,10 @@ executeAgentTurn                 agentExecutor.ts
 | Env | Default | Purpose |
 |---|---|---|
 | `API_PORT` | `8787` | API port |
-| `LLM_PROVIDER` | `openai` | `openai` \| `mock` |
-| `LLM_BASE_URL` | `http://localhost:11434/v1` | OpenAI-compatible endpoint |
-| `LLM_API_KEY` | `ollama` | key (ignored by Ollama) |
-| `LLM_MODEL` | `llama3.1` | model id |
+| `LLM_PROVIDER` | `openai` | provider name — see §11 provider table |
+| `LLM_BASE_URL` | per-provider | override base URL (required for `custom`/unknown) |
+| `LLM_API_KEY` | provider key env | override key; falls back to `OPENAI_API_KEY`/`ANTHROPIC_API_KEY`/`GEMINI_API_KEY`/`DEEPSEEK_API_KEY`/`MOONSHOT_API_KEY`/`XAI_API_KEY`/`GROQ_API_KEY`/`DASHSCOPE_API_KEY`/`OPENROUTER_API_KEY` |
+| `LLM_MODEL` | per-provider | override model id (required when preset has none, e.g. `vllm`) |
 | `LLM_TEMPERATURE` | `0.3` | sampling temperature |
 | `DEBATE_CROSS_TALK_ROUNDS` | `2` | cross-talk passes |
 | `AGENT_MAX_RETRIES` | `2` | redress re-prompts |
@@ -218,7 +229,31 @@ executeAgentTurn                 agentExecutor.ts
 | `CORS_ORIGINS` | empty | comma list; empty = allow all |
 | `PUBLIC_API_URL` | `http://localhost:8787` | web→api base URL |
 
-## 11. Known architecture notes / evolution hooks
+## 11. Multi-provider LLM layer (FR-6)
+
+`LLM_PROVIDER` selects the adapter. Presets encode the native wire format, auth scheme, default base URL, default model, and the provider's standard key env var; `LLM_BASE_URL` / `LLM_MODEL` / `LLM_API_KEY` override, and any unknown provider name acts as `custom` (OpenAI-compatible).
+
+| `LLM_PROVIDER` | Wire format | Default base URL | Default model | Key env fallback | Requires key |
+|---|---|---|---|---|---|
+| `openai` | OpenAI-compatible | `https://api.openai.com/v1` | `gpt-4o-mini` | `OPENAI_API_KEY` | yes |
+| `anthropic` | Anthropic Messages | `https://api.anthropic.com` | `claude-sonnet-4-5` | `ANTHROPIC_API_KEY` | yes |
+| `google` | Gemini `generateContent` | `https://generativelanguage.googleapis.com` | `gemini-2.5-flash` | `GEMINI_API_KEY`, `GOOGLE_API_KEY` | yes |
+| `deepseek` | OpenAI-compatible | `https://api.deepseek.com/v1` | `deepseek-chat` | `DEEPSEEK_API_KEY` | yes |
+| `kimi` | OpenAI-compatible | `https://api.moonshot.cn/v1` | `kimi-k2-0905-preview` | `MOONSHOT_API_KEY`, `KIMI_API_KEY` | yes |
+| `grok` | OpenAI-compatible | `https://api.x.ai/v1` | `grok-3-mini` | `XAI_API_KEY`, `GROK_API_KEY` | yes |
+| `groq` | OpenAI-compatible | `https://api.groq.com/openai/v1` | `llama-3.3-70b-versatile` | `GROQ_API_KEY` | yes |
+| `qwen` | OpenAI-compatible | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-plus` | `DASHSCOPE_API_KEY`, `QWEN_API_KEY` | yes |
+| `openrouter` | OpenAI-compatible | `https://openrouter.ai/api/v1` | `openai/gpt-4o-mini` | `OPENROUTER_API_KEY` | yes |
+| `ollama` | OpenAI-compatible | `http://localhost:11434/v1` | `llama3.1` | — | no |
+| `vllm` | OpenAI-compatible | `http://localhost:8000/v1` | *(none — set `LLM_MODEL`)* | — | no |
+| `lmstudio` | OpenAI-compatible | `http://localhost:1234/v1` | *(none — set `LLM_MODEL`)* | — | no |
+| `localai` | OpenAI-compatible | `http://localhost:8080/v1` | *(none — set `LLM_MODEL`)* | — | no |
+| `custom` / any unknown | OpenAI-compatible | *(required)* | *(required)* | `LLM_API_KEY` | no |
+| `mock` | — | — | `mock-response-1` | — | no |
+
+Resolution order for the API key: `LLM_API_KEY` → provider key-env fallback → empty. Cloud presets fail fast with an actionable error if no key is present; the request uses `Authorization: Bearer <key>` (OpenAI-compatible), `x-api-key` + `anthropic-version` (Anthropic), or `?key=` (Gemini).
+
+## 12. Known architecture notes / evolution hooks
 
 - **SSE bus is in-process** (`events/bus.ts`). Before scale-out: swap for Redis pub/sub (roadmap).
 - **Debates run in the API process** fire-and-forget. For concurrency: semaphore first, then BullMQ+Redis worker.

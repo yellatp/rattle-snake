@@ -28,7 +28,7 @@ It solves three core architectural challenges:
 - **G5** Convert the debate into a **Hiring Committee Blueprint** (objections, strengths, required changes, sector notes, pivot factors, per-agent verdicts, consensus).
 - **G6** Generate an **objection-clearing rewritten resume** driven by the blueprint + full debate transcript.
 - **G7** **Stream the debate live** to the frontend (SSE) and persist every run (SQLite).
-- **G8** Be fully **self-hostable and open-source**: TypeScript, Astro frontend, Node/Hono backend, OpenAI-compatible LLM (Ollama / vLLM / LocalAI / llama.cpp), SQLite persistence.
+- **G8** Be fully **self-hostable and open-source**: TypeScript, Astro frontend, Node/Hono backend, **multi-provider LLM** (OpenAI, Anthropic, Google, DeepSeek, Kimi, Grok, GroQ, Qwen, Ollama, OpenRouter, or any OpenAI-compatible endpoint), SQLite persistence.
 
 ### 2.2 Non-Goals (v2)
 - No candidate CRM, applicant tracking system, or scheduling.
@@ -46,7 +46,7 @@ It solves three core architectural challenges:
 | **Hiring Manager / Recruiter** | Fast, defensible screening signal | Paste JD + resume, pick domain, get a live committee verdict + blueprint within minutes. |
 | **Candidate** | A resume that survives rigorous scrutiny | Receive a rewritten resume that resolves the committee's concrete objections. |
 | **Self-hosted operator** | Private, offline, low-cost AI | Run everything locally against Ollama/vLLM with no cloud dependency. |
-| **Platform engineer** | Extensible, testable system | Add committees/domains via pure data; swap LLM backend via env config. |
+| **Platform engineer** | Extensible, testable system | Add committees/domains via pure data; **swap LLM provider via env config** (OpenAI, Anthropic, Google, DeepSeek, Kimi, Grok, GroQ, Qwen, Ollama, OpenRouter, or any OpenAI-compatible). |
 
 ---
 
@@ -59,9 +59,9 @@ It solves three core architectural challenges:
 | ID | Requirement | Acceptance criteria |
 |---|---|---|
 | FR-1.1 | System must define **named, 5-persona committees** per domain: **SWE/SDE**, **Data & AI**, **Finance & Banking**. | Each domain template lists 5 named personas with a role and a focus (evaluation lens). |
-| FR-1.2 | The **SWE/SDE Committee** must include personas covering: Recruiter (Priya), Technical Specialist (Alex — Staff Architect), Team Lead (Marcus), Hiring Manager (Elena — VP Eng), Sector Specialist (Liam — FinTech). | Template matches the Domain Committee Matrix in §4.6. |
-| FR-1.3 | The **Data & AI Committee** must include: Recruiter (Sarah), Technical Specialist (Dr. Aris — Principal ML), Team Lead (Vikram — Data Platform), Hiring Manager (Director Karen — Head of AI/Data), Sector Specialist (Maya — HealthTech). | Template matches the Domain Committee Matrix in §4.6. |
-| FR-1.4 | The **Finance & Banking Committee** must include: Talent Partner (David), Technical Specialist (Elena — VP Quant), Team Lead (Michael — Portfolio/Desk), Hiring Manager (Chen — MD Finance), Sector Specialist (Sophia — Energy/Real Estate). | Template matches the Domain Committee Matrix in §4.6. |
+| FR-1.2 | The **SWE/SDE Committee** must include personas covering: Recruiter (Priya), Technical Specialist (Alex — Staff Architect), Team Lead (Marcus), Hiring Manager (Elena — VP Eng), Sector Specialist (Liam — FinTech). | Template matches the Domain Committee Matrix in §4.7. |
+| FR-1.3 | The **Data & AI Committee** must include: Recruiter (Sarah), Technical Specialist (Dr. Aris — Principal ML), Team Lead (Vikram — Data Platform), Hiring Manager (Director Karen — Head of AI/Data), Sector Specialist (Maya — HealthTech). | Template matches the Domain Committee Matrix in §4.7. |
+| FR-1.4 | The **Finance & Banking Committee** must include: Talent Partner (David), Technical Specialist (Elena — VP Quant), Team Lead (Michael — Portfolio/Desk), Hiring Manager (Chen — MD Finance), Sector Specialist (Sophia — Energy/Real Estate). | Template matches the Domain Committee Matrix in §4.7. |
 | FR-1.5 | Committees must be **pure data + prompt functions** (no in-memory agent state), making new domains trivial to add. | Adding a domain = one new data file; no orchestrator changes. |
 | FR-1.6 | **Domain auto-detection** from the JD text (keyword scoring), overridable by the user. | `detectDomain(jd)` returns `SWE` / `DATA_AI` / `FINANCE` or `null`; UI pre-selects; user can override. |
 | FR-1.7 | The Sector Specialist seat must be **overridable per job** via a `sectorFocus` input. | `getCommitteeForDomain(domain, sectorFocus)` rewrites the specialist's role/focus. |
@@ -70,7 +70,7 @@ It solves three core architectural challenges:
 
 | ID | Requirement | Acceptance criteria |
 |---|---|---|
-| FR-2.1 | The Sector Specialist must act as an **industry-fit auditor**, not a generic reviewer. | Its system prompt carries a **SECTOR & TRANSFERABILITY MANDATE** (§4.6.3). |
+| FR-2.1 | The Sector Specialist must act as an **industry-fit auditor**, not a generic reviewer. | Its system prompt carries a **SECTOR & TRANSFERABILITY MANDATE** (§4.7.3). |
 | FR-2.2 | **Domain-Matched Scenario:** when candidate experience matches the target sector, the specialist checks for **deep domain alignment** (e.g., low-latency payments, PCI-DSS, double-entry ledgers). | Prompt + output includes domain-protocol/compliance scrutiny. |
 | FR-2.3 | **Cross-Sector Scenario:** the specialist evaluates **transferable skills** and names 1–2 skills that translate AND 1–2 gaps requiring ramp-up. | Prompt template contains a concrete transferability example and demands named skills/gaps. |
 | FR-2.4 | Sector notes must flow into the **blueprint** (`sectorNotes`) and drive resume reframing. | `blueprint.sectorNotes` populated; rewriter prompt maps transferable skills to the target sector. |
@@ -79,7 +79,7 @@ It solves three core architectural challenges:
 
 | ID | Requirement | Acceptance criteria |
 |---|---|---|
-| FR-3.1 | **Two-Pass Critical Thinking Pattern:** Phase A — steel-man BOTH sides (top 2 HIRE + top 2 REJECT reasons); Phase B — **Forced Pivot** (the single factor that tipped the decision) + **final unambiguous verdict**. | Agent system prompt contains `[STRONG POSITIVES]`, `[HIGH-RISK CONCERNS]`, `[PIVOT POINT]`, `[VERDICT]` sections (§4.6.2). |
+| FR-3.1 | **Two-Pass Critical Thinking Pattern:** Phase A — steel-man BOTH sides (top 2 HIRE + top 2 REJECT reasons); Phase B — **Forced Pivot** (the single factor that tipped the decision) + **final unambiguous verdict**. | Agent system prompt contains `[STRONG POSITIVES]`, `[HIGH-RISK CONCERNS]`, `[PIVOT POINT]`, `[VERDICT]` sections (§4.7.2). |
 | FR-3.2 | **Neutral verdicts forbidden.** Verdict must be `[STRONG HIRE]` or `[STRONG REJECT]`. Neutral scores (3/5, "weak lean") are explicitly banned. | Prompt law #1 forbids neutrality; the mock always emits a strong verdict. |
 | FR-3.3 | **Enforced in code**, not just prompt: response must parse to `HIRE`/`REJECT`. | `parseDecision()` extracts the verdict; `hasNeutralLanguage()` flags evasive text. |
 | FR-3.4 | **Redress loop:** if an agent violates the verdict format, it is re-prompted with a corrective instruction (up to `AGENT_MAX_RETRIES`). | Retry loop observed; fallback inherits the agent's prior vote, else `REJECT`. |
@@ -105,9 +105,23 @@ It solves three core architectural challenges:
 | FR-5.2 | `> 0.5` → SHORTLISTED, `< 0.5` → REJECTED, `= 0.5` → **tie-break by highest-weight seat** (hiring manager). | Unit-tested consensus math incl. the 0.5 case. |
 | FR-5.3 | Ballot + tallies are surfaced to the UI and stored in the blueprint. | Verdict card shows HIRE/REJECT tallies + per-agent ballot. |
 
-### 4.6 Appendix: Required Prompt & Template Contracts
+### 4.6 Multi-Provider LLM Support (FR-6)
 
-#### 4.6.1 Domain Committee Matrix
+> **Must-have provider support** (per product decision): OpenAI, Anthropic, Google, DeepSeek, Kimi/Moonshot, Grok/xAI, GroQ, Qwen/Alibaba, Ollama, OpenRouter — **plus** any other provider via a generic OpenAI-compatible fallback.
+
+| ID | Requirement | Acceptance criteria |
+|---|---|---|
+| FR-6.1 | **Provider abstraction layer** — a single `LLMClient` interface (`complete(system, user, opts)`) behind which every provider is an adapter; pipeline code is provider-agnostic. | All of `runner`, `agentExecutor`, `debateEngine`, `blueprintExtractor`, `resumeRewriter` call only `llm.complete`; zero provider branches in orchestration code. |
+| FR-6.2 | **Native provider presets** for OpenAI, Anthropic, Google (Gemini), DeepSeek, Kimi (Moonshot), Grok (xAI), GroQ, Qwen (DashScope compatible-mode), Ollama, OpenRouter. | Selecting `LLM_PROVIDER=<name>` resolves the correct base URL, auth header scheme, message format, and a sensible default model without extra config. |
+| FR-6.3 | **Anthropic native support** (Messages API, `x-api-key` + `anthropic-version`, `system` as top-level field, `max_tokens` required). | Adapter converts the shared `system`/`user` prompt into Anthropic's request shape and parses `content[].text`. |
+| FR-6.4 | **Google Gemini native support** (`generateContent`, `systemInstruction`, `generationConfig`, key via query param). | Adapter converts prompts to Gemini request shape and parses `candidates[0].content.parts`. |
+| FR-6.5 | **Generic any-provider fallback** — unknown `LLM_PROVIDER` values and a user-supplied `LLM_BASE_URL` behave as an OpenAI-compatible `/chat/completions` endpoint (covers every other vendor). | Setting `LLM_PROVIDER=custom` + `LLM_BASE_URL` + `LLM_API_KEY` + `LLM_MODEL` works; unknown provider name falls back to OpenAI-compatible. |
+| FR-6.6 | **Smart credential & model resolution** — `LLM_API_KEY`/`LLM_MODEL`/`LLM_BASE_URL` override presets; otherwise the provider's standard env var (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `DEEPSEEK_API_KEY`, `MOONSHOT_API_KEY`, `XAI_API_KEY`, `GROQ_API_KEY`, `DASHSCOPE_API_KEY`, `OPENROUTER_API_KEY`) and default model apply; missing key/model fails fast with a clear error. | `GET /health` reports the active provider + resolved model; invalid config throws an actionable message at startup. |
+| FR-6.7 | **Offline mock preserved** — `LLM_PROVIDER=mock` keeps the deterministic pipeline for CI/tests. | `pnpm test` green with no network; CLI/HTTP E2E runs with `--mock`/`LLM_PROVIDER=mock`. |
+
+### 4.7 Appendix: Required Prompt & Template Contracts
+
+#### 4.7.1 Domain Committee Matrix
 | Role | SWE / SDE Committee | Data & AI Committee | Finance & Banking Committee |
 |---|---|---|---|
 | **Screener** | Priya (Tech Recruiter) — code bases, system scale, core DSA, CS fundamentals | Sarah (Data/AI Recruiter) — math background, ML stack, data pipelines, SQL | David (Finance Talent Partner) — licenses (CFA/CPA), financial modeling, pedigree, risk exposure |
@@ -116,7 +130,7 @@ It solves three core architectural challenges:
 | **Hiring Manager** | Elena (VP Engineering) — technical debt, developer productivity, product impact | Director Karen (Head of AI/Data) — strategic AI adoption, data monetization, business ROI | Managing Director Chen — capital allocation, regulatory risk, bottom-line growth |
 | **Sector Specialist** | Liam (Domain Expert — FinTech) — domain protocols, industry stack, compliance | Maya (Domain Expert — HealthTech/Retail AI) — HIPAA/GDPR, domain metrics | Sophia (Sector Expert — Energy/Real Estate) — asset class nuances, macro drivers, compliance |
 
-#### 4.6.2 Non-Neutral Persona System Prompt (template contract)
+#### 4.7.2 Non-Neutral Persona System Prompt (template contract)
 - **IDENTITY & CONTEXT:** name, title, domain focus, evaluation style.
 - **CRITICAL ENGAGEMENT LAWS:**
   1. **NO NEUTRALITY ALLOWED** — must end with `[STRONG HIRE]` or `[STRONG REJECT]`.
@@ -126,7 +140,7 @@ It solves three core architectural challenges:
   5. **SECTOR & TRANSFERABILITY MANDATE** (Sector Specialist only).
 - **OUTPUT FORMAT (strict):** `[STRONG POSITIVES]` / `[HIGH-RISK CONCERNS]` / `[DEBATE RESPONSE]` / `[PIVOT POINT]` / `[VERDICT] [STRONG HIRE|REJECT]`.
 
-#### 4.6.3 Synthesis prompts
+#### 4.7.3 Synthesis prompts
 - **Blueprint extractor:** debate transcript → JSON matching the `Blueprint` schema (objections, strengths, requiredChanges, sectorNotes, pivotFactors, verdicts, consensus).
 - **Resume transformer:** base resume + JD + blueprint + transcript → rewritten Markdown resume resolving every objection; unknown metrics become `[ADD: ...]` placeholders; never fabricate.
 
@@ -136,7 +150,7 @@ It solves three core architectural challenges:
 
 | ID | Category | Requirement | Acceptance criteria |
 |---|---|---|---|
-| NFR-1 | **LLM agnosticism** | Must run against any OpenAI-compatible endpoint (Ollama, vLLM, LocalAI, llama.cpp, LM Studio, cloud). | Single client; `LLM_BASE_URL`/`LLM_MODEL` config; **offline mock provider** for CI/demo. |
+| NFR-1 | **LLM agnosticism** | Must run against any of the supported providers (OpenAI, Anthropic, Google, DeepSeek, Kimi, Grok, GroQ, Qwen, Ollama, OpenRouter) **or any OpenAI-compatible endpoint** via the generic fallback; **offline mock provider** for CI/demo. | Single provider-abstraction client; `LLM_PROVIDER`/`LLM_BASE_URL`/`LLM_MODEL` config (see FR-6). |
 | NFR-2 | **Performance** | A full committee run completes without manual intervention. | Async job + SSE; typical run < a few minutes on local LLM. |
 | NFR-3 | **Reliability** | Failed/aborted runs must not corrupt stored data. | Status transitions persisted; restart recovery marks orphaned jobs `failed`. |
 | NFR-4 | **Observability** | Health endpoint exposes provider/model/debate config. | `GET /health` returns `{ ok, service, llm, debate }`. |
@@ -178,5 +192,5 @@ It solves three core architectural challenges:
 |---|---|---|
 | **M0 — Docs & planning** | Sprint 0 | PRD, strategy, feature tracker, architecture, roadmap |
 | **M1 — Core complete (P1)** | Sprint 1 | Automated tests, README, Docker, web-start verification, git init |
-| **M2 — Production hardening (P2)** | Sprint 2 | Real-LLM validation, auth, file upload/export, e2e, token streaming, rate limiting |
+| **M2 — Production hardening (P2)** | Sprint 2 | **Multi-provider LLM support (FR-6)**, real-LLM validation, auth, file upload/export, e2e, token streaming, rate limiting |
 | **M3 — Extensions (P3)** | Sprint 3+ | More domains, structured JSON mode, multi-user, historical eval |

@@ -1,6 +1,6 @@
 # Rattle-Snake V2 — Handover
 
-> Last updated: 2026-08-12 · Session handover for a fresh assistant session.
+> **Last updated:** 2026-08-12 (Sprint 2 — Part A: multi-provider LLM layer shipped) · Session handover for a fresh assistant session.
 > Location: `C:\Users\prudh\Desktop\GitHub_Manager\Rattle-Snake-V2`
 > This is a **brand-new project** (not the v1 `Rattle-Snake` repo). **Git repo initialized** (commit `30342c4`, branch default).
 > Governance docs: `docs/PRD.md` (requirements), `docs/strategy.md` (agile sprint plan), `docs/feature-tracker.md` (requirement → status → code references), `docs/architecture.md`, `docs/roadmap.md`.
@@ -53,7 +53,15 @@ rattle-snake-v2/
     │   │   ├── index.ts               # entrypoint, serve, graceful shutdown
     │   │   ├── app.ts                 # createApp(): store + llm + cors + routes + restart-recovery
     │   │   ├── config.ts              # env loading (API_PORT, LLM_*, DEBATE_*, DATABASE_PATH, CORS_ORIGINS)
-    │   │   ├── llm/client.ts          # single OpenAI-compatible client + OFFLINE MOCK provider
+    │   │   ├── llm/                    # multi-provider layer (PRD FR-6)
+    │   │   │   ├── client.ts            # createLLMClient() dispatcher + preset resolution + fail-fast
+    │   │   │   ├── types.ts             # LLMClient interface: complete(system, user, opts)
+    │   │   │   ├── presets.ts           # provider registry (base URL, model, key env, wire format)
+    │   │   │   ├── openaiCompatible.ts  # /chat/completions (OpenAI, DeepSeek, Kimi, Grok, GroQ, Qwen, OpenRouter, Ollama, vLLM, LM Studio, custom)
+    │   │   │   ├── anthropic.ts         # Messages API (x-api-key, anthropic-version, top-level system)
+    │   │   │   ├── google.ts            # Gemini generateContent (systemInstruction, ?key=)
+    │   │   │   ├── mock.ts              # offline deterministic responses (tests/demos)
+    │   │   │   └── util.ts              # withApiPath (no double /v1) + describeHttpError
     │   │   ├── events/bus.ts          # in-process pub/sub per jobId (SSE source)
     │   │   ├── db/store.ts            # better-sqlite3 JobStore (jobs table, JSON transcript/blueprint)
     │   │   ├── committee/
@@ -88,7 +96,8 @@ Everything below was built and smoke-tested this session.
 | pnpm + Turborepo monorepo, 3 packages build clean | ✅ `pnpm run build` — 3/3 |
 | Typecheck (shared, api, web via `astro check`) | ✅ `pnpm exec turbo run typecheck` — 4/4, 0 errors |
 | better-sqlite3 native install on Windows/Node 22 | ✅ (approved via root `package.json` → `pnpm.onlyBuiltDependencies`) |
-| LLM client — OpenAI-compatible + **offline mock provider** | ✅ |
+| **Multi-provider LLM layer (FR-6)** | ✅ OpenAI, Anthropic, Google, DeepSeek, Kimi, Grok, GroQ, Qwen, OpenRouter, Ollama, vLLM, LM Studio, LocalAI, `custom` (any OpenAI-compatible), `mock` — native adapters + preset registry + fail-fast resolution |
+| LLM client — **offline mock provider** | ✅ |
 | Non-neutrality enforcer (parse + redress retries) | ✅ |
 | Debate engine: R1 openings → 2× cross-talk → ballot, weighted consensus | ✅ |
 | Blueprint extraction (LLM + rule-based fallback) | ✅ |
@@ -98,7 +107,7 @@ Everything below was built and smoke-tested this session.
 | SSE live streaming | ✅ `GET /api/jobs/:id/stream` replays snapshot + pushes events |
 | Web build (Astro SSR) | ✅ `astro build` |
 | Web typecheck | ✅ |
-| **vitest suite** — 44 tests (shared 13 + api 31) | ✅ `pnpm test` — non-neutrality, consensus math incl. 0.5 tiebreak, redress loop, blueprint fallback, jobs routes E2E, domain detection |
+| **vitest suite** — 64 tests (shared 13 + api 51) | ✅ `pnpm test` — provider adapters/dispatch (20), non-neutrality, consensus math incl. 0.5 tiebreak, redress loop, blueprint fallback, jobs routes E2E, domain detection |
 | **Production start scripts** | ✅ `node apps/api/dist/index.js` + `node apps/web/dist/server/entry.mjs` both serve (health 200, web 200/renders) |
 | **Docs (PRD / strategy / feature-tracker / architecture / roadmap)** | ✅ all in `docs/` |
 | **README.md** | ✅ |
@@ -122,7 +131,8 @@ pnpm dev:api                       # API on http://localhost:8787
 pnpm dev:web                       # Astro on http://localhost:4321
 ```
 
-- **Default LLM = OpenAI-compatible at `http://localhost:11434/v1` (Ollama)** with model `llama3.1`. Point `.env` `LLM_BASE_URL` at Ollama / vLLM / LocalAI / LM Studio.
+- **Default LLM = OpenAI-compatible at `http://localhost:11434/v1` (Ollama)** with model `llama3.1`. Point `LLM_BASE_URL` at Ollama / vLLM / LocalAI / LM Studio.
+- **Or any supported provider** via `LLM_PROVIDER`: `openai` · `anthropic` · `google` · `deepseek` · `kimi` · `grok` · `groq` · `qwen` · `openrouter` · `ollama` · `vllm` · `lmstudio` · `localai` · `custom` · `mock`. Keys: set `LLM_API_KEY` or the provider's standard env var (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `DEEPSEEK_API_KEY`, `MOONSHOT_API_KEY`, `XAI_API_KEY`, `GROQ_API_KEY`, `DASHSCOPE_API_KEY`, `OPENROUTER_API_KEY`). Unknown provider names + `LLM_BASE_URL` = generic OpenAI-compatible. Full table: `docs/architecture.md §11`.
 - **No LLM?** set `LLM_PROVIDER=mock` for fully offline runs.
 - CLI (no server): `pnpm debate -- --jd samples/fintech-jd.md --resume samples/candidate-resume.md --domain SWE --mock --out out.md`
 - Ports: API **8787**, Web **4321**. Frontend reads `PUBLIC_API_URL` (default `http://localhost:8787`).
@@ -140,7 +150,8 @@ pnpm dev:web                       # Astro on http://localhost:4321
 - **Sector Specialist is overridable** per job via `sectorFocus` in the POST body (`getCommitteeForDomain` rewrites its role/focus).
 - **Domain auto-detection**: `detectDomain(jd)` keyword scoring in shared; UI pre-selects; user can override.
 - **SSE bus is in-process only** (`events/bus.ts`). Swap for Redis pub/sub before scaling out (roadmap).
-- **Mock LLM** (`createMockClient`) produces schema-compliant outputs so the entire pipeline (including blueprint rule-based fallback) runs offline.
+- **Mock LLM** (`createMockClient` in `apps/api/src/llm/mock.ts`) produces schema-compliant outputs so the entire pipeline (including blueprint rule-based fallback) runs offline.
+- **Provider layer is fetch-based** — no `openai` SDK dependency. `createLLMClient(config)` (`apps/api/src/llm/client.ts`) dispatches on `LLM_PROVIDER`: `anthropic` → Messages adapter, `google` → Gemini adapter, known OpenAI-compatible names / unknown / `custom` → `/chat/completions`, `mock` → offline. `resolveEndpointConfig` resolves key/model/baseUrl with preset defaults + provider key-env fallbacks and fails fast with actionable errors.
 - **Job isolation**: every evaluation is its own `JobState` + row in SQLite; a crash mid-debate loses only in-flight turns.
 
 ---
@@ -150,8 +161,8 @@ pnpm dev:web                       # Astro on http://localhost:4321
 Sprint plan + full status per requirement: `docs/strategy.md` + `docs/feature-tracker.md`.
 
 ### P1 — Required to call the app "complete"
-1. **Test against a real LLM.** Everything so far is verified with the mock provider only. Point `LLM_BASE_URL`/`LLM_MODEL` at Ollama/vLLM, run the CLI + a full UI flow, and sanity-check: response format adherence, redress retries actually firing, blueprint JSON parse rate, rewriter output quality. *(Sprint 2)*
-2. **Verify the Docker image build** — compose file validated, but `docker build` was not run (Docker Desktop was off). *(Sprint 1.5 follow-up)*
+1. **Test against a real LLM (Sprint 2 Part B).** Everything so far is verified with the mock provider only. **The user chose to supply an OpenAI-compatible endpoint** (base URL + key + model) but the details are NOT yet provided — ask for them. Then run the CLI + a full UI flow and sanity-check: response format adherence, redress retries actually firing, blueprint JSON parse rate, rewriter output quality.
+2. **Verify the Docker image build (Sprint 2 Part C)** — compose file validated, but `docker build` was not run (Docker Desktop was off).
 
 ### P2 — Production hardening
 3. **Basic auth** for the web/API (self-hosted exposure). Simple token via middleware or basic-auth Hono package.
@@ -184,10 +195,10 @@ Sprint plan + full status per requirement: `docs/strategy.md` + `docs/feature-tr
 
 ```
 API_PORT=8787
-LLM_PROVIDER=openai            # or "mock"
-LLM_BASE_URL=http://localhost:11434/v1
-LLM_API_KEY=ollama
-LLM_MODEL=llama3.1
+LLM_PROVIDER=openai            # openai|anthropic|google|deepseek|kimi|grok|groq|qwen|openrouter|ollama|vllm|lmstudio|localai|custom|mock (unknown name = OpenAI-compatible)
+LLM_BASE_URL=                  # override base URL (per-provider default if empty; REQUIRED for custom)
+LLM_API_KEY=                   # override key; else provider env (OPENAI_API_KEY, ANTHROPIC_API_KEY, ...)
+LLM_MODEL=                     # override model (per-provider default if empty; REQUIRED for vllm/lmstudio/localai/custom)
 LLM_TEMPERATURE=0.3
 DEBATE_CROSS_TALK_ROUNDS=2
 AGENT_MAX_RETRIES=2
