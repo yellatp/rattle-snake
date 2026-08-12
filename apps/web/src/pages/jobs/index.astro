@@ -1,0 +1,11 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import JobList from "../../components/JobList.tsx";
+---
+<Layout title="Committee Runs">
+  <h1>Committee Runs</h1>
+  <p class="hint">Every candidate evaluation, persisted locally in SQLite.</p>
+  <div style="margin-top: 16px;">
+    <JobList client:load />
+  </div>
+</Layout>

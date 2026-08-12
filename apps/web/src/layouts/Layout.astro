@@ -1,0 +1,39 @@
+---
+import "../styles/global.css";
+interface Props {
+  title: string;
+}
+const { title } = Astro.props;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title} · Rattle-Snake V2</title>
+  </head>
+  <body>
+    <header class="site-header">
+      <nav class="site-nav">
+        <a class="brand" href="/">
+          <span class="brand-mark">🐍</span>
+          <span class="brand-name">Rattle-Snake <em>V2</em></span>
+        </a>
+        <div class="nav-links">
+          <a href="/">New Debate</a>
+          <a href="/jobs">Committee Runs</a>
+        </div>
+      </nav>
+    </header>
+    <main class="site-main">
+      <slot />
+    </main>
+    <footer class="site-footer">
+      <p>
+        Self-hosted hiring committee · domain-aware multi-agent debate ·
+        forced non-neutral verdicts
+      </p>
+    </footer>
+  </body>
+</html>

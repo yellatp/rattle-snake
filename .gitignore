@@ -1,0 +1,30 @@
+# dependencies
+node_modules/
+
+# builds & caches
+dist/
+.turbo/
+.astro/
+*.tsbuildinfo
+
+# env
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# local data
+data/
+*.db
+*.db-journal
+
+# logs
+logs/
+*.log
+
+# editor / os
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db

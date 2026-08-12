@@ -1,0 +1,29 @@
+{
+  "name": "@rattlesnake/web",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Astro frontend for the Rattle-Snake V2 hiring committee.",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "start": "node ./dist/server/entry.mjs",
+    "typecheck": "astro check"
+  },
+  "dependencies": {
+    "@astrojs/node": "^9.5.5",
+    "@astrojs/react": "^4.1.2",
+    "@rattlesnake/shared": "workspace:*",
+    "astro": "^5.1.8",
+    "marked": "^15.0.6",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.4",
+    "@types/react": "^19.0.4",
+    "@types/react-dom": "^19.0.2",
+    "typescript": "^5.7.2"
+  }
+}

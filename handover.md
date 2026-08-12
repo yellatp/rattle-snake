@@ -1,0 +1,194 @@
+# Rattle-Snake V2 — Handover
+
+> Last updated: 2026-08-12 · Session handover for a fresh assistant session.
+> Location: `C:\Users\prudh\Desktop\GitHub_Manager\Rattle-Snake-V2`
+> This is a **brand-new project** (not the v1 `Rattle-Snake` repo). Not yet a git repo.
+
+---
+
+## 1. What this project is
+
+A **self-hosted, production-oriented hiring committee** system (v2 of Rattle-Snake).
+Three core design goals from the spec:
+
+1. **Domain-specific committee templates** — 5 named personas per domain (SWE / Data & AI / Finance), loaded dynamically from the target domain.
+2. **Sector/Domain Transferability Specialist** — the 5th agent audits industry fit + cross-sector transferable skills.
+3. **"Non-Neutral" persona guardrail** — agents MUST end every turn with `[STRONG HIRE]` or `[STRONG REJECT]`; neutral verdicts are forbidden and enforced in code (not just prompt).
+
+Full pipeline: **committee debate (opening → cross-talk → ballot) → weighted consensus → hiring blueprint → objection-clearing resume rewrite**, streamed live to the UI over **SSE**.
+
+Architecture (per spec): **Astro frontend + Hono/Node backend + OpenAI-compatible LLM client + SQLite**, pnpm + Turborepo monorepo, TypeScript end to end.
+
+---
+
+## 2. Project structure
+
+```
+rattle-snake-v2/
+├── package.json              # root: turbo scripts (dev/build/typecheck/debate)
+├── pnpm-workspace.yaml
+├── turbo.json
+├── tsconfig.base.json
+├── .env.example              # copy to .env
+├── samples/                  # sample JD + resume + rewritten-resume output
+├── docs/                     # EMPTY — README + architecture/roadmap docs NOT written yet
+├── packages/
+│   └── shared/               # @rattlesnake/shared (pure data + types + prompts)
+│       └── src/
+│           ├── types.ts              # Domain, AgentConfig, JobState, TranscriptEntry, Blueprint, JobEvent
+│           ├── validation.ts         # Zod schemas (createJobSchema, jobSchema, blueprintSchema)
+│           ├── prompts.ts            # system-prompt builder (non-neutrality framework), blueprint + rewriter prompts
+│           └── agents/
+│               ├── swe.ts            # Priya, Alex, Marcus, Elena, Liam (FinTech sector spec)
+│               ├── dataAi.ts         # Sarah, Dr. Aris, Vikram, Karen, Maya (HealthTech sector spec)
+│               ├── finance.ts        # David, Elena, Michael, Chen, Sophia (Energy/Real Estate sector spec)
+│               └── index.ts          # DOMAIN_COMMITTEES map, detectDomain(), getCommitteeForDomain()
+└── apps/
+    ├── api/                   # @rattlesnake/api — Hono backend (port 8787)
+    │   ├── src/
+    │   │   ├── index.ts               # entrypoint, serve, graceful shutdown
+    │   │   ├── app.ts                 # createApp(): store + llm + cors + routes + restart-recovery
+    │   │   ├── config.ts              # env loading (API_PORT, LLM_*, DEBATE_*, DATABASE_PATH, CORS_ORIGINS)
+    │   │   ├── llm/client.ts          # single OpenAI-compatible client + OFFLINE MOCK provider
+    │   │   ├── events/bus.ts          # in-process pub/sub per jobId (SSE source)
+    │   │   ├── db/store.ts            # better-sqlite3 JobStore (jobs table, JSON transcript/blueprint)
+    │   │   ├── committee/
+    │   │   │   ├── nonNeutrality.ts   # parseDecision()/hasNeutralLanguage() — verdict extraction + enforcement
+    │   │   │   ├── agentExecutor.ts   # executeAgentTurn() + retry/redress loop
+    │   │   │   ├── debateEngine.ts    # runDebate() rounds + aggregateVotes() weighted consensus
+    │   │   │   ├── blueprintExtractor.ts  # LLM-first, rule-based fallback, Zod repair
+    │   │   │   ├── resumeRewriter.ts  # rewriteResume() from blueprint + transcript
+    │   │   │   └── runner.ts          # runCommittee() orchestrator, publishes JobEvents
+    │   │   └── routes/
+    │   │       ├── health.ts
+    │   │       └── jobs.ts            # POST/GET/GET:stream/DELETE + SSE endpoint
+    │   └── cli/debate.ts              # offline/headless runner (pnpm debate --mock)
+    └── web/                   # @rattlesnake/web — Astro 5 SSR (node adapter, port 4321)
+        ├── astro.config.mjs           # output: "server", @astrojs/node standalone
+        └── src/
+            ├── layouts/Layout.astro
+            ├── pages/index.astro, jobs/index.astro, jobs/[id].astro
+            ├── components/NewJobForm.tsx, JobList.tsx, DebateView.tsx (SSE live)
+            └── lib/api.ts             # fetch client; PUBLIC_API_URL env
+```
+
+---
+
+## 3. Current state — VERIFIED working
+
+Everything below was built and smoke-tested this session.
+
+| Capability | Status |
+|---|---|
+| pnpm + Turborepo monorepo, 3 packages build clean | ✅ `pnpm run build` — 3/3 |
+| Typecheck (shared, api, web via `astro check`) | ✅ `pnpm exec turbo run typecheck` — 4/4, 0 errors |
+| better-sqlite3 native install on Windows/Node 22 | ✅ (approved via root `package.json` → `pnpm.onlyBuiltDependencies`) |
+| LLM client — OpenAI-compatible + **offline mock provider** | ✅ |
+| Non-neutrality enforcer (parse + redress retries) | ✅ |
+| Debate engine: R1 openings → 2× cross-talk → ballot, weighted consensus | ✅ |
+| Blueprint extraction (LLM + rule-based fallback) | ✅ |
+| Resume rewriter (objection-clearing, `[ADD: ...]` placeholders) | ✅ |
+| CLI runner end-to-end with mock | ✅ `pnpm debate -- --jd samples/fintech-jd.md --resume samples/candidate-resume.md --domain SWE --mock --out samples/rewritten-resume.md` |
+| HTTP API end-to-end with mock | ✅ health, POST /api/jobs, GET /api/jobs/:id (20 entries, verdict SHORTLISTED, blueprint, rewritten resume) |
+| SSE live streaming | ✅ `GET /api/jobs/:id/stream` replays snapshot + pushes events |
+| Web build (Astro SSR) | ✅ `astro build` |
+| Web typecheck | ✅ |
+
+**E2E evidence captured this session** (mock provider):
+- Job `msqoq644vxbtve81` → `status=completed`, `finalVerdict=SHORTLISTED`, 20 transcript entries (5 opening + 10 cross-talk + 5 ballot), blueprint with 10 objections/10 strengths/10 required changes, rewritten resume in Markdown.
+- Every agent turn contains `[STRONG POSITIVES] / [HIGH-RISK CONCERNS] / [PIVOT POINT] / [VERDICT] [STRONG HIRE]`.
+
+---
+
+## 4. How to run
+
+```powershell
+# from repo root
+pnpm install                       # (first time)
+Copy-Item .env.example .env        # optional; defaults are sane
+pnpm dev:api                       # API on http://localhost:8787
+pnpm dev:web                       # Astro on http://localhost:4321
+```
+
+- **Default LLM = OpenAI-compatible at `http://localhost:11434/v1` (Ollama)** with model `llama3.1`. Point `.env` `LLM_BASE_URL` at Ollama / vLLM / LocalAI / LM Studio.
+- **No LLM?** set `LLM_PROVIDER=mock` for fully offline runs.
+- CLI (no server): `pnpm debate -- --jd samples/fintech-jd.md --resume samples/candidate-resume.md --domain SWE --mock --out out.md`
+- Ports: API **8787**, Web **4321**. Frontend reads `PUBLIC_API_URL` (default `http://localhost:8787`).
+- SQLite data: `data/rattle-snake.db` (gitignored). On restart, jobs left mid-debate are marked `failed`.
+
+---
+
+## 5. Key implementation notes (for the next session)
+
+- **Agents are pure data + prompt functions** (`AgentConfig` + `buildAgentSystemPrompt`), stateless; all memory lives in the shared `JobState.transcript`.
+- **Forced non-neutrality** is enforced twice: in the system prompt (laws 1–4) AND by parsing (`parseDecision`) with a redress re-prompt loop; ultimate fallback inherits the agent's prior vote.
+- **Weighted consensus**: `aggregateVotes()` — score = Σ(HIRE weights)/Σ(all weights); >0.5 SHORTLISTED, <0.5 REJECTED, =0.5 tiebreak by highest-weight seat (hiring manager). Weights in the agent data (recruiter 0.8, tech specialist 1.2, lead 1, manager 1.2, sector specialist 1).
+- **Sector Specialist is overridable** per job via `sectorFocus` in the POST body (`getCommitteeForDomain` rewrites its role/focus).
+- **Domain auto-detection**: `detectDomain(jd)` keyword scoring in shared; UI pre-selects; user can override.
+- **SSE bus is in-process only** (`events/bus.ts`). Swap for Redis pub/sub before scaling out (roadmap).
+- **Mock LLM** (`createMockClient`) produces schema-compliant outputs so the entire pipeline (including blueprint rule-based fallback) runs offline.
+- **Job isolation**: every evaluation is its own `JobState` + row in SQLite; a crash mid-debate loses only in-flight turns.
+
+---
+
+## 6. Still to do / next steps (in priority order)
+
+### P1 — Required to call the app "complete"
+1. **Test against a real LLM.** Everything so far is verified with the mock provider only. Point `LLM_BASE_URL`/`LLM_MODEL` at Ollama/vLLM, run the CLI + a full UI flow, and sanity-check: response format adherence, redress retries actually firing, blueprint JSON parse rate, rewriter output quality.
+2. **Write `README.md`** (install, config, architecture summary, screenshots/ASCII flow).
+3. **Write `docs/architecture.md`** (the full spec: domain matrix, debate rounds, non-neutrality framework, end-to-end orchestration, TS architecture diagram).
+4. **Write `docs/roadmap.md`** (future optimizations: Redis/BullMQ queue, Postgres migration, token streaming, caching, evaluation harness).
+5. **Add automated tests** — `vitest` in `apps/api` for `nonNeutrality.ts`, `debateEngine.ts` (consensus math incl. 0.5 tiebreak), `blueprintExtractor.ts` (fallback path), `jobs.ts` routes (hono `app.request()`), plus `shared` detectDomain. No test framework is installed yet.
+6. **Dockerize for self-hosting** — `Dockerfile` per app (api + web) and a `docker-compose.yml` (api, web, optional ollama). `@astrojs/node` standalone output is `dist/server/entry.mjs`.
+7. **`git init` + initial commit.** (Not a git repo yet. `.gitignore` already written.)
+
+### P2 — Production hardening
+8. Web `start` script (`node ./dist/server/entry.mjs`) — **not yet verified**; run a build + preview smoke test.
+9. **Basic auth** for the web/API (self-hosted exposure). Simple token via middleware or basic-auth Hono package.
+10. Frontend **resume/JD file upload** (parse `.pdf`/`.docx` → text) in `NewJobForm`.
+11. **Export rewritten resume** to PDF/DOCX from the UI.
+12. Frontend e2e (`playwright`) for the create → stream → verdict flow.
+13. **Token-level streaming** of agent turns (currently whole-turn completion → could be SSE chunked) + per-agent latency/retry telemetry.
+14. Rate-limit / queue concurrent debates; guardrail against prompt-injection in JD/resume text.
+
+### P3 — Nice-to-have / spec extensions
+15. More domain committees (Design/Product, Cybersecurity, Cloud/DevOps) — trivial: add a file to `packages/shared/src/agents/`.
+16. `LLM_TEMPERATURE` tuning; structured JSON output mode (OpenAI `response_format`) instead of text parsing where supported.
+17. `@hono/oauth-provider` or user accounts; multi-user job separation.
+18. Historical eval: run same candidate vs. multiple JDs, diff rewritten resumes.
+
+---
+
+## 7. Environment / gotchas
+
+- OS **Windows**, shell **PowerShell 5.1**, Node **v22.20.0**, pnpm **10.33.2**, Turbo **2.10.9**, Astro **5.18.2**, Hono **4.x**, better-sqlite3 **11.10.0**, React **19**.
+- `pnpm.onlyBuiltDependencies` in root `package.json` is required so `better-sqlite3` / `esbuild` / `sharp` build scripts run (pnpm 10 blocks them by default).
+- PowerShell 5.1 `Invoke-RestMethod` mangles UTF-8 (em-dashes) when posting; use `curl.exe --data-binary @file.json` for API testing (or PS7).
+- Turbo prints a benign `node.exe` PowerShell "RemoteException" on success — ignore it; check `Tasks: N successful`.
+- `noUncheckedIndexedAccess: true` is on everywhere — use `!`/`??` for map/array access (several fixes already applied for this).
+- **Non-ASCII chars in source (—, ·, ⇒) are fine and intentional** (prompt quality), UTF-8 files.
+
+## 8. Config reference (.env)
+
+```
+API_PORT=8787
+LLM_PROVIDER=openai            # or "mock"
+LLM_BASE_URL=http://localhost:11434/v1
+LLM_API_KEY=ollama
+LLM_MODEL=llama3.1
+LLM_TEMPERATURE=0.3
+DEBATE_CROSS_TALK_ROUNDS=2
+AGENT_MAX_RETRIES=2
+DATABASE_PATH=./data/rattle-snake.db
+CORS_ORIGINS=                  # empty = allow all (localhost)
+PUBLIC_API_URL=http://localhost:8787   # used by the web app
+```
+
+## 9. API surface
+
+- `GET  /health` — status + LLM provider/model + debate config
+- `POST /api/jobs` — `{ domain?, jobDescription, baseResume, sectorFocus? }` → 202 + job
+- `GET  /api/jobs` — summary list
+- `GET  /api/jobs/:id` — full job (transcript, verdict, blueprint, rewrittenResume)
+- `GET  /api/jobs/:id/stream` — SSE (`job` snapshot then `entry|status|verdict|blueprint|resume|done|error|ping`)
+- `DELETE /api/jobs/:id`

@@ -1,0 +1,16 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import DebateView from "../../components/DebateView.tsx";
+
+const { id } = Astro.params;
+---
+<Layout title={id ? `Run ${id.slice(0, 12)}` : "Committee Run"}>
+  {id ? (
+    <DebateView client:load jobId={id} />
+  ) : (
+    <section class="panel">
+      <h2>Run not found</h2>
+      <p class="hint"><a href="/jobs">Back to committee runs</a></p>
+    </section>
+  )}
+</Layout>

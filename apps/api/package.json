@@ -1,0 +1,31 @@
+{
+  "name": "@rattlesnake/api",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Hono + Node.js backend running the domain-aware hiring committee debate.",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "debate": "tsx cli/debate.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.7",
+    "@hono/zod-validator": "^0.4.1",
+    "@rattlesnake/shared": "workspace:*",
+    "better-sqlite3": "^11.10.0",
+    "hono": "^4.6.14",
+    "openai": "^4.77.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.10"
+  }
+}
