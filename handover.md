@@ -2,7 +2,8 @@
 
 > Last updated: 2026-08-12 · Session handover for a fresh assistant session.
 > Location: `C:\Users\prudh\Desktop\GitHub_Manager\Rattle-Snake-V2`
-> This is a **brand-new project** (not the v1 `Rattle-Snake` repo). Not yet a git repo.
+> This is a **brand-new project** (not the v1 `Rattle-Snake` repo). **Git repo initialized** (commit `30342c4`, branch default).
+> Governance docs: `docs/PRD.md` (requirements), `docs/strategy.md` (agile sprint plan), `docs/feature-tracker.md` (requirement → status → code references), `docs/architecture.md`, `docs/roadmap.md`.
 
 ---
 
@@ -25,13 +26,16 @@ Architecture (per spec): **Astro frontend + Hono/Node backend + OpenAI-compatibl
 
 ```
 rattle-snake-v2/
-├── package.json              # root: turbo scripts (dev/build/typecheck/debate)
+├── package.json              # root: turbo scripts (dev/build/typecheck/test/debate)
 ├── pnpm-workspace.yaml
 ├── turbo.json
 ├── tsconfig.base.json
 ├── .env.example              # copy to .env
+├── Dockerfile                # single image; ARG TARGET=api|web + entrypoint.sh
+├── docker-compose.yml        # api + web (+ optional ollama via --profile llm)
+├── entrypoint.sh
 ├── samples/                  # sample JD + resume + rewritten-resume output
-├── docs/                     # EMPTY — README + architecture/roadmap docs NOT written yet
+├── docs/                     # PRD, strategy, feature-tracker, architecture, roadmap — all written
 ├── packages/
 │   └── shared/               # @rattlesnake/shared (pure data + types + prompts)
 │       └── src/
@@ -62,6 +66,7 @@ rattle-snake-v2/
     │   │   └── routes/
     │   │       ├── health.ts
     │   │       └── jobs.ts            # POST/GET/GET:stream/DELETE + SSE endpoint
+    │   │   (+ *.test.ts colocated — see "Tests" below)
     │   └── cli/debate.ts              # offline/headless runner (pnpm debate --mock)
     └── web/                   # @rattlesnake/web — Astro 5 SSR (node adapter, port 4321)
         ├── astro.config.mjs           # output: "server", @astrojs/node standalone
@@ -93,10 +98,17 @@ Everything below was built and smoke-tested this session.
 | SSE live streaming | ✅ `GET /api/jobs/:id/stream` replays snapshot + pushes events |
 | Web build (Astro SSR) | ✅ `astro build` |
 | Web typecheck | ✅ |
+| **vitest suite** — 44 tests (shared 13 + api 31) | ✅ `pnpm test` — non-neutrality, consensus math incl. 0.5 tiebreak, redress loop, blueprint fallback, jobs routes E2E, domain detection |
+| **Production start scripts** | ✅ `node apps/api/dist/index.js` + `node apps/web/dist/server/entry.mjs` both serve (health 200, web 200/renders) |
+| **Docs (PRD / strategy / feature-tracker / architecture / roadmap)** | ✅ all in `docs/` |
+| **README.md** | ✅ |
+| **Docker** | ✅ `Dockerfile` (TARGET api|web) + `entrypoint.sh` + `docker-compose.yml` (compose config validates; **image build not yet run** — Docker Desktop was off) |
+| **git** | ✅ initialized, initial commit `30342c4` |
 
 **E2E evidence captured this session** (mock provider):
 - Job `msqoq644vxbtve81` → `status=completed`, `finalVerdict=SHORTLISTED`, 20 transcript entries (5 opening + 10 cross-talk + 5 ballot), blueprint with 10 objections/10 strengths/10 required changes, rewritten resume in Markdown.
 - Every agent turn contains `[STRONG POSITIVES] / [HIGH-RISK CONCERNS] / [PIVOT POINT] / [VERDICT] [STRONG HIRE]`.
+- **Bug fixed this session:** `parseDecision` was not uppercasing a case-insensitive marker match — `[strong hire]` produced the invalid lowercase decision `"hire"`. Fixed at `apps/api/src/committee/nonNeutrality.ts:33` (`match[1]!.toUpperCase()`) + regression test.
 
 ---
 
@@ -115,6 +127,8 @@ pnpm dev:web                       # Astro on http://localhost:4321
 - CLI (no server): `pnpm debate -- --jd samples/fintech-jd.md --resume samples/candidate-resume.md --domain SWE --mock --out out.md`
 - Ports: API **8787**, Web **4321**. Frontend reads `PUBLIC_API_URL` (default `http://localhost:8787`).
 - SQLite data: `data/rattle-snake.db` (gitignored). On restart, jobs left mid-debate are marked `failed`.
+- **Tests/checks:** `pnpm test` (44 tests) · `pnpm typecheck` · `pnpm run build`.
+- **Docker:** `docker compose up --build` (api+web) · `docker compose --profile llm up --build` (adds local Ollama). Note: image build unverified locally (Docker Desktop off).
 
 ---
 
@@ -133,29 +147,25 @@ pnpm dev:web                       # Astro on http://localhost:4321
 
 ## 6. Still to do / next steps (in priority order)
 
+Sprint plan + full status per requirement: `docs/strategy.md` + `docs/feature-tracker.md`.
+
 ### P1 — Required to call the app "complete"
-1. **Test against a real LLM.** Everything so far is verified with the mock provider only. Point `LLM_BASE_URL`/`LLM_MODEL` at Ollama/vLLM, run the CLI + a full UI flow, and sanity-check: response format adherence, redress retries actually firing, blueprint JSON parse rate, rewriter output quality.
-2. **Write `README.md`** (install, config, architecture summary, screenshots/ASCII flow).
-3. **Write `docs/architecture.md`** (the full spec: domain matrix, debate rounds, non-neutrality framework, end-to-end orchestration, TS architecture diagram).
-4. **Write `docs/roadmap.md`** (future optimizations: Redis/BullMQ queue, Postgres migration, token streaming, caching, evaluation harness).
-5. **Add automated tests** — `vitest` in `apps/api` for `nonNeutrality.ts`, `debateEngine.ts` (consensus math incl. 0.5 tiebreak), `blueprintExtractor.ts` (fallback path), `jobs.ts` routes (hono `app.request()`), plus `shared` detectDomain. No test framework is installed yet.
-6. **Dockerize for self-hosting** — `Dockerfile` per app (api + web) and a `docker-compose.yml` (api, web, optional ollama). `@astrojs/node` standalone output is `dist/server/entry.mjs`.
-7. **`git init` + initial commit.** (Not a git repo yet. `.gitignore` already written.)
+1. **Test against a real LLM.** Everything so far is verified with the mock provider only. Point `LLM_BASE_URL`/`LLM_MODEL` at Ollama/vLLM, run the CLI + a full UI flow, and sanity-check: response format adherence, redress retries actually firing, blueprint JSON parse rate, rewriter output quality. *(Sprint 2)*
+2. **Verify the Docker image build** — compose file validated, but `docker build` was not run (Docker Desktop was off). *(Sprint 1.5 follow-up)*
 
 ### P2 — Production hardening
-8. Web `start` script (`node ./dist/server/entry.mjs`) — **not yet verified**; run a build + preview smoke test.
-9. **Basic auth** for the web/API (self-hosted exposure). Simple token via middleware or basic-auth Hono package.
-10. Frontend **resume/JD file upload** (parse `.pdf`/`.docx` → text) in `NewJobForm`.
-11. **Export rewritten resume** to PDF/DOCX from the UI.
-12. Frontend e2e (`playwright`) for the create → stream → verdict flow.
-13. **Token-level streaming** of agent turns (currently whole-turn completion → could be SSE chunked) + per-agent latency/retry telemetry.
-14. Rate-limit / queue concurrent debates; guardrail against prompt-injection in JD/resume text.
+3. **Basic auth** for the web/API (self-hosted exposure). Simple token via middleware or basic-auth Hono package.
+4. Frontend **resume/JD file upload** (parse `.pdf`/`.docx` → text) in `NewJobForm`.
+5. **Export rewritten resume** to PDF/DOCX from the UI.
+6. Frontend e2e (`playwright`) for the create → stream → verdict flow.
+7. **Token-level streaming** of agent turns (currently whole-turn completion → could be SSE chunked) + per-agent latency/retry telemetry.
+8. Rate-limit / queue concurrent debates; guardrail against prompt-injection in JD/resume text.
 
 ### P3 — Nice-to-have / spec extensions
-15. More domain committees (Design/Product, Cybersecurity, Cloud/DevOps) — trivial: add a file to `packages/shared/src/agents/`.
-16. `LLM_TEMPERATURE` tuning; structured JSON output mode (OpenAI `response_format`) instead of text parsing where supported.
-17. `@hono/oauth-provider` or user accounts; multi-user job separation.
-18. Historical eval: run same candidate vs. multiple JDs, diff rewritten resumes.
+9. More domain committees (Design/Product, Cybersecurity, Cloud/DevOps) — trivial: add a file to `packages/shared/src/agents/`.
+10. `LLM_TEMPERATURE` tuning; structured JSON output mode (OpenAI `response_format`) instead of text parsing where supported.
+11. `@hono/oauth-provider` or user accounts; multi-user job separation.
+12. Historical eval: run same candidate vs. multiple JDs, diff rewritten resumes.
 
 ---
 
@@ -167,6 +177,8 @@ pnpm dev:web                       # Astro on http://localhost:4321
 - Turbo prints a benign `node.exe` PowerShell "RemoteException" on success — ignore it; check `Tasks: N successful`.
 - `noUncheckedIndexedAccess: true` is on everywhere — use `!`/`??` for map/array access (several fixes already applied for this).
 - **Non-ASCII chars in source (—, ·, ⇒) are fine and intentional** (prompt quality), UTF-8 files.
+- **vitest specifics:** test files are excluded from `tsc` build via `exclude: ["src/**/*.test.ts"]` in `apps/api/tsconfig.json` + `packages/shared/tsconfig.json` (vitest transpiles them itself; build/typecheck stay green). When writing route tests that create jobs, the fire-and-forget `runCommittee` keeps running — **close the store only after jobs reach a terminal status** (see `drainActiveJobs` in `apps/api/src/routes/jobs.test.ts`), and never `rmSync` an open SQLite file on Windows (EBUSY).
+- **React 19 note:** `FormEvent` is deprecated in React 19 types — use `SyntheticEvent<HTMLFormElement>` for onSubmit handlers (`apps/web/src/components/NewJobForm.tsx`).
 
 ## 8. Config reference (.env)
 
