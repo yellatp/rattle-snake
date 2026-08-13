@@ -209,6 +209,20 @@ describe("createLLMClient dispatch (FR-6.1/FR-6.5/FR-6.6)", () => {
     expect(llm.model).toBe("mock-response-1");
   });
 
+  it("mock keeps each agent's persona in cross-talk even though the prompt mentions the Sector Specialist", async () => {
+    const llm = createLLMClient(loadConfig());
+    const crosstalkSystem =
+      "You are Priya Sharma, acting as the Lead Technical Recruiter on the hiring committee.\n" +
+      "PHASE — ROUND 2 CROSS-TALK: ... challenge a named colleague ...\n" +
+      "4. DEBATE ENGAGEMENT: ... Sector Specialist mandate ... SECTOR & TRANSFERABILITY MANDATE ...\n" +
+      "[DEBATE RESPONSE]\n- address named colleague(s)\n\n[SECTOR & TRANSFERABILITY]\n- ...";
+    const out = await llm.complete(crosstalkSystem, "transcript...");
+    expect(out).toContain("strong keyword alignment with the JD and a metric-dense history");
+    expect(out).toContain("recruiter's lens");
+    expect(out).not.toContain("prior exposure maps cleanly to the target sector");
+    expect(out).not.toContain("sector specialist's domain lens");
+  });
+
   it("LLM_PROVIDER=ollama resolves the local preset without any env overrides", async () => {
     setEnv({ LLM_PROVIDER: "ollama" });
     const fetch = mockFetchOnce({ choices: [{ message: { content: "ok" } }] });

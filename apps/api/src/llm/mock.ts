@@ -54,6 +54,14 @@ const MOCK_PIVOTS: Record<string, string> = {
   sector: "transferability: whether prior sector skills translate to this sector decides the fit",
 };
 
+const MOCK_LENS: Record<string, string> = {
+  recruiter: "recruiter's lens — matching, market seniority and signal density",
+  architect: "architect's lens — scale, trade-offs and systemic ownership",
+  lead: "lead's lens — delivery, reliability and team dynamics",
+  manager: "manager's lens — ROI, leverage and business outcomes",
+  sector: "sector specialist's lens — domain fit and transferability",
+};
+
 /**
  * Deterministic, correctly-formatted mock response for a system/user prompt.
  * Shared by the offline mock client AND the fake local LLM servers used by the
@@ -104,30 +112,33 @@ Terraform · CI/CD, TDD, observability (Prometheus/Grafana), incident response
   const name = nameMatch?.[1]?.trim() ?? "Committee Member";
   const role = nameMatch?.[2]?.trim() ?? "Committee Member";
 
-  const tone =
-    system.includes("Sector Specialist") || role.toLowerCase().includes("sector")
-      ? "sector"
-      : role.toLowerCase().includes("recruiter")
-        ? "recruiter"
-        : role.toLowerCase().includes("architect") ||
-            role.toLowerCase().includes("data scientist") ||
-            role.toLowerCase().includes("quant")
-          ? "architect"
-          : role.toLowerCase().includes("lead") ||
-              role.toLowerCase().includes("desk")
-            ? "lead"
-            : "manager";
+  // Persona is derived ONLY from the agent's own role line. The cross-talk and
+  // ballot prompts embed the Sector Specialist mandate for every agent, so
+  // matching on the body text would assign the sector tone to all of them.
+  const tone = role.toLowerCase().includes("sector")
+    ? "sector"
+    : role.toLowerCase().includes("recruiter")
+      ? "recruiter"
+      : role.toLowerCase().includes("architect") ||
+          role.toLowerCase().includes("data scientist") ||
+          role.toLowerCase().includes("quant")
+        ? "architect"
+        : role.toLowerCase().includes("lead") ||
+            role.toLowerCase().includes("desk")
+          ? "lead"
+          : "manager";
 
   const reasons = MOCK_REASONS[tone] ?? MOCK_REASONS["manager"]!;
   const concerns = MOCK_CONCERNS[tone] ?? MOCK_CONCERNS["manager"]!;
   const pivot = MOCK_PIVOTS[tone] ?? MOCK_PIVOTS["manager"]!;
+  const lens = MOCK_LENS[tone] ?? MOCK_LENS["manager"]!;
 
   const isBallot = system.includes("PHASE — FINAL BALLOT");
   if (isBallot) {
     return `[DEBATE RESPONSE]\n- ${name}: balancing the committee's evidence, my position is unchanged. ${reasons[0] ?? ""} outweighs the concerns.\n\n[PIVOT POINT]\n- ${pivot}\n\n[VERDICT]\n[STRONG HIRE] — ${reasons[0] ?? "the evidence supports proceeding."}`;
   }
 
-  return `[STRONG POSITIVES]\n- ${reasons[0] ?? "strong, concrete evidence of capability"}\n- ${reasons[1] ?? "record aligns with the role"}\n\n[HIGH-RISK CONCERNS]\n- ${concerns[0] ?? "one or more material gaps"}\n- ${concerns[1] ?? "unverified claims"}\n\n[DEBATE RESPONSE]\n- As ${name}, I weigh the transcript evidence and note the sector specialist's domain lens.\n\n[PIVOT POINT]\n- ${pivot}\n\n[VERDICT]\n[STRONG HIRE] — ${reasons[0] ?? "evidence outweighs risk"}.`;
+  return `[STRONG POSITIVES]\n- ${reasons[0] ?? "strong, concrete evidence of capability"}\n- ${reasons[1] ?? "record aligns with the role"}\n\n[HIGH-RISK CONCERNS]\n- ${concerns[0] ?? "one or more material gaps"}\n- ${concerns[1] ?? "unverified claims"}\n\n[DEBATE RESPONSE]\n- As ${name}, I weigh the transcript evidence through my ${lens}. My position holds: ${reasons[0] ?? "the evidence supports the call"}.\n\n[PIVOT POINT]\n- ${pivot}\n\n[VERDICT]\n[STRONG HIRE] — ${reasons[0] ?? "evidence outweighs risk"}.`;
 }
 
 /**
