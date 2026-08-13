@@ -43,6 +43,11 @@ export const createJobSchema = z.object({
     .string()
     .max(60)
     .optional(),
+  /** Where the job is based (e.g. "New York, USA" / "London, UK") — drives the US/UK English variant. */
+  location: z
+    .string()
+    .max(120)
+    .optional(),
   /** Bring-your-own-LLM: per-run override of the server's env provider. */
   llm: llmOverrideSchema.optional(),
   /** Use a saved LLM connection (key stored server-side, encrypted). */

@@ -121,7 +121,12 @@ Committee Orchestrator ── agents are pure data + prompts (packages/shared)
    ├─ aggregateVotes : weighted consensus (>0.5 SHORTLISTED, =0.5 tiebreak)
    ├─ executeAgentTurn : non-neutrality enforcement + redress loop
    ├─ extractBlueprint : LLM-first, rule-based fallback
-   └─ rewriteResume    : objection-clearing Markdown
+   └─ generateSophisticatedResume : role-targeted rewrite (V1 port)
+      ├─ resolveRoleSlug : JD title/keyword → one of 32 role prompts + templates
+      ├─ English variant : US/UK English from the job location (spelling/terminology)
+      ├─ committee feedback (GAP report + expert transcript) injected into the prompt
+      ├─ ATS re-score + LLM quality moderator loop (max 2 iterations)
+      └─ Markdown + editable JSON + meta (role / ATS% / auditor / locale)
    │
    ├─ LLM client (provider adapters: OpenAI-compatible / Anthropic / Gemini | mock)
    └─ SQLite (better-sqlite3, WAL) + in-process SSE event bus
@@ -136,7 +141,7 @@ Full detail: [docs/architecture.md](docs/architecture.md).
 | Method | Path | Description |
 |---|---|---|
 | GET | `/health` | provider/model/debate config |
-| POST | `/api/jobs` | `{ domain?, jobDescription, baseResume, sectorFocus?, llm?, llmConnectionId? }` → 202 + job (see BYOK below); `llm` and `llmConnectionId` are mutually exclusive |
+| POST | `/api/jobs` | `{ domain?, jobDescription, baseResume, sectorFocus?, location?, llm?, llmConnectionId? }` → 202 + job (see BYOK below); `llm` and `llmConnectionId` are mutually exclusive; `location` (e.g. "London, UK") drives the US/UK English variant of the rewritten resume |
 | GET | `/api/jobs` | compact list |
 | GET | `/api/jobs/:id` | full state (transcript, verdict, blueprint, rewritten resume) |
 | GET | `/api/jobs/:id/stream` | SSE live events (`job`, `entry`, `status`, `verdict`, `blueprint`, `resume`, `done`, `error`, `ping`) |

@@ -18,7 +18,7 @@ import { getCommitteeForDomain, type JobState } from "@rattlesnake/shared";
 import { createLLMClient } from "../src/llm/client.js";
 import { runDebate } from "../src/committee/debateEngine.js";
 import { extractBlueprint } from "../src/committee/blueprintExtractor.js";
-import { rewriteResume } from "../src/committee/resumeRewriter.js";
+import { generateSophisticatedResume } from "../src/resume/engine.js";
 import { loadEnv } from "../src/env.js";
 import { loadConfig } from "../src/config.js";
 
@@ -96,14 +96,19 @@ console.log(JSON.stringify(blueprint, null, 2));
 job.blueprint = blueprint;
 
 console.log("\n========== REWRITTEN RESUME ==========\n");
-const rewritten = await rewriteResume(job, blueprint, llm);
-console.log(rewritten);
-job.rewrittenResume = rewritten;
+const rewritten = await generateSophisticatedResume(job, blueprint, llm);
+job.rewrittenResume = rewritten.markdown;
+job.rewrittenResumeJson = rewritten.json;
+job.resumeMeta = rewritten.meta;
+console.log(rewritten.markdown);
+console.log(
+  `\n[meta] role=${rewritten.meta.role} ATS=${rewritten.meta.atsScore} auditor=${rewritten.meta.moderationScore}/100 approved=${rewritten.meta.moderationApproved} iterations=${rewritten.meta.iterations}`,
+);
 
 if (values.out) {
   const outPath = resolveArg(values.out);
   mkdirSync(path.dirname(outPath), { recursive: true });
-  await writeFile(outPath, rewritten, "utf-8");
+  await writeFile(outPath, rewritten.markdown, "utf-8");
   console.log(`\nSaved rewritten resume to ${outPath}`);
 }
 

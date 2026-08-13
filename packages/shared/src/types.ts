@@ -66,6 +66,31 @@ export interface Blueprint {
   consensus: Verdict;
 }
 
+/**
+ * Compact, non-secret metadata about how a resume was generated.
+ * Mirrors the api package's `resume/types.ts` contract (kept in shared so the
+ * web app can render it without importing server code).
+ */
+export interface ResumeMeta {
+  /** Detected role slug (e.g. "swe"). */
+  role: string;
+  /** Human label for the detected role (e.g. "Software Engineer"). */
+  roleLabel: string;
+  /** ATS keyword coverage score, 0-100. */
+  atsScore: number;
+  /** Elite resume-auditor quality score, 0-100. */
+  moderationScore: number;
+  /** Whether the resume auditor approved the final output. */
+  moderationApproved: boolean;
+  /** Number of generation iterations used (1 = initial, 2 = one re-run). */
+  iterations: number;
+  /** English variant the resume was written in ("us" | "uk"). */
+  locale?: EnglishLocale;
+}
+
+/** English variant used for the generated resume, derived from job location. */
+export type EnglishLocale = "us" | "uk";
+
 export interface JobState {
   id: string;
   domain: Domain;
@@ -73,10 +98,17 @@ export interface JobState {
   baseResume: string;
   /** Optional override for the sector specialist persona. */
   sectorFocus?: string;
+  /** Where the job is based (free text, e.g. "London, UK") — drives the US/UK English variant. */
+  jobLocation?: string;
   transcript: TranscriptEntry[];
   finalVerdict?: Verdict;
   blueprint?: Blueprint;
+  /** Rendered Markdown view of the rewritten resume. */
   rewrittenResume?: string;
+  /** Structured role-template JSON produced by the resume engine. */
+  rewrittenResumeJson?: string;
+  /** Role / ATS / moderation metadata for the generated resume. */
+  resumeMeta?: ResumeMeta;
   /** Non-secret record of which provider/model actually ran this evaluation. */
   llmUsed?: { provider: string; model: string };
   status: JobStatus;
@@ -135,6 +167,12 @@ export type JobEvent =
   | { type: "entry"; jobId: string; entry: TranscriptEntry }
   | { type: "verdict"; jobId: string; verdict: Verdict; tallies: Record<string, number> }
   | { type: "blueprint"; jobId: string; blueprint: Blueprint }
-  | { type: "resume"; jobId: string; rewrittenResume: string }
+  | {
+      type: "resume";
+      jobId: string;
+      rewrittenResume: string;
+      rewrittenResumeJson?: string;
+      resumeMeta?: ResumeMeta;
+    }
   | { type: "done"; jobId: string; job: JobState }
   | { type: "error"; jobId: string; message: string };

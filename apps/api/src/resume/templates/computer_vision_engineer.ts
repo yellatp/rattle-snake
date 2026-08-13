@@ -1,0 +1,120 @@
+export default {
+    "role":  "Computer Vision Engineer",
+    "slug":  "computer_vision_engineer",
+    "contact":  {
+                    "name":  "",
+                    "location":  "",
+                    "phone":  "",
+                    "email":  "",
+                    "linkedin":  "",
+                    "github":  "",
+                    "portfolio":  ""
+                },
+    "sections":  {
+                     "summary":  {
+                                     "content":  "",
+                                     "editable":  true
+                                 },
+                     "skills":  {
+                                    "categories":  [
+
+                                                   ],
+                                    "editable":  true
+                                },
+                     "experience":  [
+
+                                    ],
+                     "education":  [
+
+                                   ],
+                     "certifications":  [
+
+                                        ],
+                     "coreCompetencies":  [
+
+                                          ]
+                 },
+    "ats_keywords":  [
+                         "computer vision",
+                         "CV",
+                         "object detection",
+                         "image classification",
+                         "segmentation",
+                         "semantic segmentation",
+                         "instance segmentation",
+                         "panoptic segmentation",
+                         "YOLO",
+                         "YOLOv8",
+                         "DETR",
+                         "Faster R-CNN",
+                         "Mask R-CNN",
+                         "U-Net",
+                         "SAM",
+                         "Segment Anything",
+                         "Vision Transformer",
+                         "ViT",
+                         "DeiT",
+                         "Swin Transformer",
+                         "CNN",
+                         "ResNet",
+                         "EfficientNet",
+                         "ConvNeXt",
+                         "PyTorch",
+                         "torchvision",
+                         "Detectron2",
+                         "TensorFlow",
+                         "Keras",
+                         "OpenCV",
+                         "image processing",
+                         "video processing",
+                         "multi-object tracking",
+                         "DeepSORT",
+                         "ByteTrack",
+                         "optical flow",
+                         "pose estimation",
+                         "depth estimation",
+                         "3D vision",
+                         "point cloud",
+                         "NeRF",
+                         "Gaussian Splatting",
+                         "Stable Diffusion",
+                         "generative models",
+                         "GANs",
+                         "CLIP",
+                         "image retrieval",
+                         "semantic search",
+                         "OCR",
+                         "Tesseract",
+                         "TrOCR",
+                         "LayoutLM",
+                         "document understanding",
+                         "model optimization",
+                         "TensorRT",
+                         "ONNX",
+                         "OpenVINO",
+                         "quantization",
+                         "pruning",
+                         "distillation",
+                         "edge deployment",
+                         "NVIDIA Jetson",
+                         "TFLite",
+                         "CoreML",
+                         "real-time inference",
+                         "FPS",
+                         "latency optimization",
+                         "data annotation",
+                         "active learning",
+                         "data augmentation",
+                         "synthesis",
+                         "mAP",
+                         "IoU",
+                         "precision",
+                         "recall",
+                         "F1",
+                         "model calibration",
+                         "adversarial robustness",
+                         "bias evaluation",
+                         "fairness in vision"
+                     ],
+    "system_prompt_ref":  "computer_vision_engineer"
+};

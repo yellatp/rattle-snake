@@ -62,50 +62,95 @@ const MOCK_LENS: Record<string, string> = {
   sector: "sector specialist's lens — domain fit and transferability",
 };
 
+/** Valid role-template JSON for the mock resume engine output. */
+const MOCK_RESUME_JSON = JSON.stringify({
+  role: "Software Engineer",
+  slug: "swe",
+  contact: {
+    name: "Rohan Mehta",
+    location: "Bengaluru, India",
+    phone: "",
+    email: "rohan.mehta@example.com",
+    linkedin: "linkedin.com/in/rohanmehta",
+    github: "github.com/rohanmehta",
+    portfolio: "",
+  },
+  sections: {
+    summary: {
+      content:
+        "Backend engineer with 6 years of experience building low-latency event-driven systems in TypeScript and Go. Reduced API latency by 40%, migrated a monolith to Kafka-based microservices, and owns production reliability with on-call and SLO work for real-time payment processing.",
+      editable: true,
+    },
+    skills: {
+      categories: [
+        { name: "Languages", items: ["TypeScript", "Go", "Java"] },
+        { name: "Data & Messaging", items: ["PostgreSQL", "Redis", "Kafka", "SQS"] },
+        { name: "Infrastructure", items: ["Docker", "Kubernetes", "AWS", "Terraform", "CI/CD"] },
+      ],
+      editable: true,
+    },
+    experience: [
+      {
+        id: "e1",
+        title: "Senior Software Engineer",
+        company: "RetailWorks",
+        location: "Bengaluru",
+        dates: "2021 – Present",
+        bullets: [
+          "Reduced order-processing API latency by 40% across 2M+ monthly orders by refactoring PostgreSQL query plans and adding Redis-backed caching with idempotent retry semantics.",
+          "Migrated a 12-service monolith to event-driven microservices on Kafka, cutting deploy time from 45min to 5min and eliminating order-sync failures for merchant settlement.",
+          "Owned production reliability: idempotent retry handling, SQS dead-letter queues, and on-call runbooks with PCI-DSS-aware payment processing (MTTR down 30%).",
+        ],
+      },
+      {
+        id: "e2",
+        title: "Software Engineer",
+        company: "TravelBuddy",
+        location: "Remote",
+        dates: "2019 – 2021",
+        bullets: [
+          "Built RESTful booking APIs in Node.js/PostgreSQL serving 1M+ requests/day.",
+          "Designed a Redis caching layer that reduced read load on the primary database by 35%.",
+        ],
+      },
+    ],
+    education: [{ degree: "B.Tech Computer Science", institution: "NIT", dates: "2014 – 2018" }],
+    certifications: ["AWS Certified Solutions Architect"],
+    coreCompetencies: [
+      "Distributed Systems",
+      "System Design",
+      "Event-Driven Architecture",
+      "Performance Optimization",
+      "Idempotency",
+    ],
+  },
+  ats_keywords: [],
+  system_prompt_ref: "swe",
+  changed_sections: ["e1", "e2"],
+});
+
+const MOCK_MODERATION_JSON = JSON.stringify({
+  score: 92,
+  approved: true,
+  summaryVerdict: "Score 92 — strong X-Y-Z bullets aligned to the JD.",
+  bannedPhrases: [],
+  issues: [],
+  suggestions: [],
+});
+
 /**
  * Deterministic, correctly-formatted mock response for a system/user prompt.
  * Shared by the offline mock client AND the fake local LLM servers used by the
  * functional test suite (which proves each provider wire format over real HTTP).
  */
 export function mockResponseFor(system: string, _user: string): string {
-  if (system.includes("Debate-Driven Resume Transformer")) {
-    return `# Rohan Mehta
-Senior Backend Engineer — Event-Driven Distributed Systems
-Bengaluru, India · rohan.mehta@example.com
-
-## Summary
-Backend engineer with 6 years of experience shipping low-latency, event-driven
-systems in TypeScript and Go. Track record of reducing API latency by 40%,
-migrating monoliths to Kafka-based microservices, and owning production SLOs.
-
-## Experience
-
-### Senior Software Engineer — RetailWorks (E-commerce) · 2021 – Present
-- **Reduced order-processing API latency by 40%** across 2M+ monthly orders by
-  refactoring PostgreSQL query plans and adding Redis-backed caching.
-- **Migrated a 12-service monolith to event-driven microservices** on Kafka,
-  cutting deploy time from 45min to 5min and eliminating order sync failures.
-- Owned reliability for the order pipeline: built idempotent retry semantics,
-  Grafana/Prometheus dashboards, and on-call runbooks (MTTR down 30%).
-- Established CI/CD and test automation for the payments integration team,
-  raising merge-to-production velocity by 60%.
-
-### Software Engineer — TravelBuddy (Travel tech) · 2019 – 2021
-- Built RESTful booking APIs in Node.js/PostgreSQL serving 1M+ requests/day.
-- Designed a Redis caching layer that reduced read load on the primary DB by 35%.
-- Maintained Docker/Kubernetes deployment pipelines across dev/staging/prod.
-
-### Software Engineer Intern — FinBank (Retail banking) · 2018 – 2019
-- Automated reconciliation scripts between ledger systems, removing manual
-  nightly work and surfacing a recurring 0.2% settlement discrepancy.
-
-## Skills
-TypeScript, Go, Node.js · PostgreSQL, Redis · Kafka, RabbitMQ · Docker, Kubernetes, AWS,
-Terraform · CI/CD, TDD, observability (Prometheus/Grafana), incident response
-
-[ADD: explicit PCI-DSS training/certification if applicable]
-[ADD: numbers for throughput (e.g., events/sec processed) to strengthen the sector-fit case]
-`;
+  // Sophisticated resume engine: role-targeted resume-writer system prompt.
+  if (system.includes("senior resume writer")) {
+    return MOCK_RESUME_JSON;
+  }
+  // Sophisticated resume engine: elite resume quality auditor.
+  if (system.includes("resume quality auditor")) {
+    return MOCK_MODERATION_JSON;
   }
 
   const nameMatch = system.match(/You are ([A-Za-z .]+), acting as the ([^.\n]+)\./);

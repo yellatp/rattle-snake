@@ -3,9 +3,10 @@ import { marked } from "marked";
 import type {
   Blueprint,
   JobState,
+  ResumeMeta,
   TranscriptEntry,
 } from "@rattlesnake/shared";
-import { getJob, streamUrl } from "../lib/api";
+import { getJob, streamUrl, updateJobResume } from "../lib/api";
 
 interface Props {
   jobId: string;
@@ -98,8 +99,16 @@ export default function DebateView({ jobId, initialJob = null }: Props) {
       patch({ blueprint: data.blueprint });
     });
     es.addEventListener("resume", (e) => {
-      const data = JSON.parse((e as MessageEvent).data) as { rewrittenResume: string };
-      patch({ rewrittenResume: data.rewrittenResume });
+      const data = JSON.parse((e as MessageEvent).data) as {
+        rewrittenResume: string;
+        rewrittenResumeJson?: string;
+        resumeMeta?: ResumeMeta;
+      };
+      patch({
+        rewrittenResume: data.rewrittenResume,
+        rewrittenResumeJson: data.rewrittenResumeJson,
+        resumeMeta: data.resumeMeta,
+      });
     });
     es.addEventListener("done", (e) => {
       const data = JSON.parse((e as MessageEvent).data) as { job: JobState };
@@ -174,7 +183,15 @@ export default function DebateView({ jobId, initialJob = null }: Props) {
       </section>
 
       {job.blueprint && <BlueprintView blueprint={job.blueprint} />}
-      {job.rewrittenResume && <RewrittenResume resume={job.rewrittenResume} />}
+      {job.rewrittenResume && (
+        <RewrittenResume
+          resume={job.rewrittenResume}
+          resumeJson={job.rewrittenResumeJson}
+          meta={job.resumeMeta}
+          jobId={job.id}
+          onSaved={patch}
+        />
+      )}
     </div>
   );
 }
@@ -282,12 +299,109 @@ function BlueprintView({ blueprint }: { blueprint: Blueprint }) {
   );
 }
 
-function RewrittenResume({ resume }: { resume: string }) {
+type ResumeTab = "markdown" | "json";
+
+function RewrittenResume({
+  resume,
+  resumeJson,
+  meta,
+  jobId,
+  onSaved,
+}: {
+  resume: string;
+  resumeJson?: string;
+  meta?: ResumeMeta;
+  jobId: string;
+  onSaved: (patch: Partial<JobState>) => void;
+}) {
   const html = useMemo(() => marked.parse(resume, { async: false }) as string, [resume]);
+  const [tab, setTab] = useState<ResumeTab>("markdown");
+  const [draft, setDraft] = useState<string>(resumeJson ?? "");
+  const [saving, setSaving] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  // Keep the draft in sync with the latest streamed version.
+  useEffect(() => {
+    if (resumeJson !== undefined && resumeJson !== draft) setDraft(resumeJson);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resumeJson]);
+
+  const save = async () => {
+    setSaving(true);
+    setNotice(null);
+    try {
+      const updated = await updateJobResume(jobId, { rewrittenResumeJson: draft });
+      onSaved(updated);
+      setNotice("Saved");
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Save failed");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <section className="panel">
-      <h2>Rewritten Resume (objections resolved)</h2>
-      <article className="resume-md" dangerouslySetInnerHTML={{ __html: html }} />
+      <div className="panel-head">
+        <h2>Rewritten Resume (objections resolved)</h2>
+        {meta && <ResumeMetaBadge meta={meta} />}
+      </div>
+
+      <div className="tabs" role="tablist">
+        <button
+          type="button"
+          className={`tab ${tab === "markdown" ? "active" : ""}`}
+          onClick={() => setTab("markdown")}
+        >
+          Markdown
+        </button>
+        <button
+          type="button"
+          className={`tab ${tab === "json" ? "active" : ""}`}
+          onClick={() => setTab("json")}
+        >
+          JSON {resumeJson ? "· edit" : ""}
+        </button>
+      </div>
+
+      {tab === "markdown" ? (
+        <article className="resume-md" dangerouslySetInnerHTML={{ __html: html }} />
+      ) : (
+        <div>
+          <textarea
+            className="resume-json-editor"
+            aria-label="Structured resume JSON"
+            value={draft}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              setNotice(null);
+            }}
+            spellCheck={false}
+          />
+          <div className="resume-editor-actions">
+            <button type="button" className="btn primary" onClick={save} disabled={saving}>
+              {saving ? "Saving..." : "Save changes"}
+            </button>
+            {notice && <span className="hint">{notice}</span>}
+          </div>
+        </div>
+      )}
     </section>
+  );
+}
+
+function ResumeMetaBadge({ meta }: { meta: ResumeMeta }) {
+  return (
+    <div className="resume-meta">
+      <span className="tag accent">role: {meta.roleLabel}</span>
+      <span className={`tag ${meta.atsScore >= 60 ? "hire" : "warn"}`}>
+        ATS {meta.atsScore}%
+      </span>
+      <span className={`tag ${meta.moderationApproved ? "hire" : "reject"}`}>
+        auditor {meta.moderationScore}/100
+      </span>
+      <span className="tag">{meta.iterations > 1 ? `${meta.iterations} passes` : "1 pass"}</span>
+      {meta.locale && <span className="tag">English: {meta.locale.toUpperCase()}</span>}
+    </div>
   );
 }

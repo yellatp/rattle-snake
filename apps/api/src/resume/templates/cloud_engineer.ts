@@ -1,0 +1,122 @@
+export default {
+    "role":  "Cloud Engineer",
+    "slug":  "cloud_engineer",
+    "contact":  {
+                    "name":  "",
+                    "location":  "",
+                    "phone":  "",
+                    "email":  "",
+                    "linkedin":  "",
+                    "github":  "",
+                    "portfolio":  ""
+                },
+    "sections":  {
+                     "summary":  {
+                                     "content":  "",
+                                     "editable":  true
+                                 },
+                     "skills":  {
+                                    "categories":  [
+
+                                                   ],
+                                    "editable":  true
+                                },
+                     "experience":  [
+
+                                    ],
+                     "education":  [
+
+                                   ],
+                     "certifications":  [
+
+                                        ],
+                     "coreCompetencies":  [
+
+                                          ]
+                 },
+    "ats_keywords":  [
+                         "AWS",
+                         "GCP",
+                         "Azure",
+                         "multi-cloud",
+                         "hybrid cloud",
+                         "Kubernetes",
+                         "EKS",
+                         "GKE",
+                         "AKS",
+                         "Docker",
+                         "containerd",
+                         "Terraform",
+                         "OpenTofu",
+                         "Pulumi",
+                         "CDK",
+                         "CloudFormation",
+                         "Ansible",
+                         "Helm",
+                         "Kustomize",
+                         "ArgoCD",
+                         "Flux",
+                         "GitOps",
+                         "CI/CD",
+                         "GitHub Actions",
+                         "Jenkins",
+                         "GitLab CI",
+                         "Istio",
+                         "Linkerd",
+                         "service mesh",
+                         "mTLS",
+                         "zero trust",
+                         "VPC",
+                         "networking",
+                         "DNS",
+                         "CDN",
+                         "IAM",
+                         "policy as code",
+                         "SCP",
+                         "Organizations",
+                         "Control Tower",
+                         "Landing Zone",
+                         "security",
+                         "compliance",
+                         "SOC 2",
+                         "HIPAA",
+                         "PCI DSS",
+                         "Prometheus",
+                         "Grafana",
+                         "Loki",
+                         "Tempo",
+                         "Datadog",
+                         "New Relic",
+                         "CloudWatch",
+                         "observability",
+                         "monitoring",
+                         "alerting",
+                         "SLO",
+                         "SLI",
+                         "error budget",
+                         "MTTR",
+                         "FinOps",
+                         "cost optimization",
+                         "right-sizing",
+                         "reserved instances",
+                         "spot instances",
+                         "auto-scaling",
+                         "HPA",
+                         "VPA",
+                         "KEDA",
+                         "disaster recovery",
+                         "RTO",
+                         "RPO",
+                         "high availability",
+                         "multi-region",
+                         "failover",
+                         "load balancing",
+                         "auto scaling",
+                         "secrets management",
+                         "Vault",
+                         "encryption",
+                         "KMS",
+                         "certificate management"
+                     ],
+    "system_prompt_ref":  "cloud_engineer"
+};

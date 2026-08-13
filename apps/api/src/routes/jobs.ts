@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { streamSSE } from "hono/streaming";
+import { z } from "zod";
 import {
   createJobSchema,
   detectDomain,
@@ -12,6 +13,8 @@ import type { JobStore } from "../db/store.js";
 import { createLLMClient, type LLMClient } from "../llm/client.js";
 import { bus } from "../events/bus.js";
 import { runCommittee } from "../committee/runner.js";
+import { resumeToMarkdown } from "../resume/serialize.js";
+import type { ResumeTemplate } from "../resume/types.js";
 
 function newJobId(): string {
   return (
@@ -84,6 +87,7 @@ export function createJobsRouter(store: JobStore, llm: LLMClient, config: AppCon
       jobDescription: body.jobDescription,
       baseResume: body.baseResume,
       sectorFocus: body.sectorFocus,
+      jobLocation: body.location,
       transcript: [],
       status: "pending",
       llmUsed: { provider: jobLlm.provider, model: jobLlm.model },
@@ -115,6 +119,27 @@ export function createJobsRouter(store: JobStore, llm: LLMClient, config: AppCon
   router.get("/:id", (c) => {
     const job = store.get(c.req.param("id"));
     if (!job) return c.json({ error: "Job not found" }, 404);
+    return c.json(job);
+  });
+
+  // PUT /api/jobs/:id/resume — persist manual edits made in the resume JSON
+  // editor; the Markdown view is re-rendered server-side from the JSON.
+  const resumeUpdateSchema = z.object({
+    rewrittenResumeJson: z.string().min(2),
+  });
+  router.put("/:id/resume", zValidator("json", resumeUpdateSchema), (c) => {
+    const job = store.get(c.req.param("id"));
+    if (!job) return c.json({ error: "Job not found" }, 404);
+    const body = c.req.valid("json");
+    try {
+      const parsed = JSON.parse(body.rewrittenResumeJson) as ResumeTemplate;
+      job.rewrittenResumeJson = JSON.stringify(parsed, null, 2);
+      job.rewrittenResume = resumeToMarkdown(parsed);
+    } catch {
+      return c.json({ error: "Invalid resume JSON." }, 400);
+    }
+    job.updatedAt = new Date().toISOString();
+    store.update(job);
     return c.json(job);
   });
 

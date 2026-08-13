@@ -9,6 +9,7 @@ import type {
   LlmConnectionInput,
   LlmConnectionUpdateInput,
   ProfileInput,
+  ResumeMeta,
   SavedJd,
   SavedJdInput,
   SavedResume,
@@ -33,10 +34,13 @@ interface JobRow {
   job_description: string;
   base_resume: string;
   sector_focus: string | null;
+  job_location: string | null;
   transcript: string;
   final_verdict: string | null;
   blueprint: string | null;
   rewritten_resume: string | null;
+  rewritten_resume_json: string | null;
+  resume_meta: string | null;
   llm_used: string | null;
   status: string;
   error: string | null;
@@ -92,10 +96,13 @@ export class JobStore {
         job_description TEXT NOT NULL,
         base_resume TEXT NOT NULL,
         sector_focus TEXT,
+        job_location TEXT,
         transcript TEXT NOT NULL DEFAULT '[]',
         final_verdict TEXT,
         blueprint TEXT,
         rewritten_resume TEXT,
+        rewritten_resume_json TEXT,
+        resume_meta TEXT,
         status TEXT NOT NULL,
         error TEXT,
         created_at TEXT NOT NULL,
@@ -141,6 +148,23 @@ export class JobStore {
     } catch {
       /* column already exists */
     }
+    // Migration for DBs created before the sophisticated resume engine.
+    try {
+      this.db.exec(`ALTER TABLE jobs ADD COLUMN rewritten_resume_json TEXT`);
+    } catch {
+      /* column already exists */
+    }
+    try {
+      this.db.exec(`ALTER TABLE jobs ADD COLUMN resume_meta TEXT`);
+    } catch {
+      /* column already exists */
+    }
+    // Migration for DBs created before the US/UK English-variant feature.
+    try {
+      this.db.exec(`ALTER TABLE jobs ADD COLUMN job_location TEXT`);
+    } catch {
+      /* column already exists */
+    }
   }
 
   // --- Jobs -----------------------------------------------------------------
@@ -149,10 +173,12 @@ export class JobStore {
     this.db
       .prepare(
         `INSERT INTO jobs
-          (id, domain, job_description, base_resume, sector_focus, transcript,
-           final_verdict, blueprint, rewritten_resume, llm_used, status, error, created_at, updated_at)
-         VALUES (@id, @domain, @jobDescription, @baseResume, @sectorFocus, @transcript,
-           @finalVerdict, @blueprint, @rewrittenResume, @llmUsed, @status, @error, @createdAt, @updatedAt)`,
+          (id, domain, job_description, base_resume, sector_focus, job_location, transcript,
+           final_verdict, blueprint, rewritten_resume, rewritten_resume_json,
+           resume_meta, llm_used, status, error, created_at, updated_at)
+         VALUES (@id, @domain, @jobDescription, @baseResume, @sectorFocus, @jobLocation, @transcript,
+           @finalVerdict, @blueprint, @rewrittenResume, @rewrittenResumeJson,
+           @resumeMeta, @llmUsed, @status, @error, @createdAt, @updatedAt)`,
       )
       .run(rowFromJob(job));
   }
@@ -180,10 +206,13 @@ export class JobStore {
            job_description = @jobDescription,
            base_resume = @baseResume,
            sector_focus = @sectorFocus,
+           job_location = @jobLocation,
            transcript = @transcript,
            final_verdict = @finalVerdict,
            blueprint = @blueprint,
            rewritten_resume = @rewrittenResume,
+           rewritten_resume_json = @rewrittenResumeJson,
+           resume_meta = @resumeMeta,
            llm_used = @llmUsed,
            status = @status,
            error = @error,
@@ -509,10 +538,13 @@ function rowFromJob(job: JobState): Record<string, unknown> {
     jobDescription: job.jobDescription,
     baseResume: job.baseResume,
     sectorFocus: job.sectorFocus ?? null,
+    jobLocation: job.jobLocation ?? null,
     transcript: JSON.stringify(job.transcript),
     finalVerdict: job.finalVerdict ?? null,
     blueprint: job.blueprint ? JSON.stringify(job.blueprint) : null,
     rewrittenResume: job.rewrittenResume ?? null,
+    rewrittenResumeJson: job.rewrittenResumeJson ?? null,
+    resumeMeta: job.resumeMeta ? JSON.stringify(job.resumeMeta) : null,
     llmUsed: job.llmUsed ? JSON.stringify(job.llmUsed) : null,
     status: job.status,
     error: job.error ?? null,
@@ -528,12 +560,17 @@ function jobFromRow(row: JobRow): JobState {
     jobDescription: row.job_description,
     baseResume: row.base_resume,
     sectorFocus: row.sector_focus ?? undefined,
+    jobLocation: row.job_location ?? undefined,
     transcript: parseJSON<TranscriptEntry[]>(row.transcript, []),
     finalVerdict: (row.final_verdict as JobState["finalVerdict"]) ?? undefined,
     blueprint: row.blueprint
       ? parseJSON<Blueprint>(row.blueprint, undefined as unknown as Blueprint)
       : undefined,
     rewrittenResume: row.rewritten_resume ?? undefined,
+    rewrittenResumeJson: row.rewritten_resume_json ?? undefined,
+    resumeMeta: row.resume_meta
+      ? parseJSON<ResumeMeta>(row.resume_meta, undefined as unknown as ResumeMeta)
+      : undefined,
     llmUsed: row.llm_used
       ? parseJSON<{ provider: string; model: string }>(
           row.llm_used,

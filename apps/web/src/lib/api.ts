@@ -5,6 +5,7 @@ import type {
   LlmConnectionInput,
   LlmConnectionUpdateInput,
   LlmOverride,
+  ResumeMeta,
   SavedJd,
   SavedJdInput,
   SavedResume,
@@ -22,6 +23,7 @@ export interface CreateJobPayload {
   jobDescription: string;
   baseResume: string;
   sectorFocus?: string;
+  location?: string;
   llm?: LlmOverride;
   llmConnectionId?: string;
 }
@@ -53,6 +55,17 @@ export async function listJobs(): Promise<JobState[]> {
 
 export function getJob(id: string): Promise<JobState> {
   return request<JobState>(`/api/jobs/${id}`);
+}
+
+/** Persist manual edits made in the resume JSON editor (Markdown is re-rendered server-side). */
+export function updateJobResume(
+  id: string,
+  input: { rewrittenResumeJson: string },
+): Promise<JobState> {
+  return request<JobState>(`/api/jobs/${id}/resume`, {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
 }
 
 export function streamUrl(jobId: string): string {
@@ -158,6 +171,7 @@ export type {
   JobState,
   LlmConnection,
   LlmOverride,
+  ResumeMeta,
   SavedJd,
   SavedResume,
   TranscriptEntry,

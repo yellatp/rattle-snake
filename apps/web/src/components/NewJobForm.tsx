@@ -75,6 +75,7 @@ function loadLlmSettings(): LlmSettings {
 export default function NewJobForm() {
   const [domain, setDomain] = useState<string>("");
   const [sectorFocus, setSectorFocus] = useState("");
+  const [jobLocation, setJobLocation] = useState("");
   const [jobDescription, setJobDescription] = useState("");
   const [baseResume, setBaseResume] = useState("");
   const [detected, setDetected] = useState<string | null>(null);
@@ -154,6 +155,7 @@ export default function NewJobForm() {
         jobDescription,
         baseResume,
         sectorFocus: sectorFocus.trim() || undefined,
+        location: jobLocation.trim() || undefined,
         llm: override,
         llmConnectionId: connectionId || undefined,
       });
@@ -357,6 +359,20 @@ export default function NewJobForm() {
           onChange={(e) => setJobDescription(e.target.value)}
           onBlur={handleJdBlur}
           placeholder="Paste the full job description..."
+        />
+      </div>
+
+      <div className="form-row">
+        <label htmlFor="location">
+          Job location{" "}
+          <span className="hint">— optional; sets US or UK English for the resume</span>
+        </label>
+        <input
+          id="location"
+          type="text"
+          value={jobLocation}
+          onChange={(e) => setJobLocation(e.target.value)}
+          placeholder="e.g. New York, USA · London, UK (auto-detected from the JD if left blank)"
         />
       </div>
 

@@ -22,7 +22,7 @@ import { serve, type ServerType } from "@hono/node-server";
 import { getCommitteeForDomain, type JobState } from "@rattlesnake/shared";
 import { runDebate } from "../src/committee/debateEngine.js";
 import { extractBlueprint } from "../src/committee/blueprintExtractor.js";
-import { rewriteResume } from "../src/committee/resumeRewriter.js";
+import { generateSophisticatedResume } from "../src/resume/engine.js";
 import { loadConfig } from "../src/config.js";
 import { loadEnv } from "../src/env.js";
 import { createLLMClient } from "../src/llm/client.js";
@@ -124,6 +124,8 @@ async function wireFormatE2E(kind: FakeLLMKind, provider: string, serverUrl: str
     domain: "SWE",
     jobDescription: jd,
     baseResume: resume,
+    // Exercise the UK English variant on the wire-format path.
+    jobLocation: "London, UK",
     transcript: [],
     status: "debating",
     createdAt: new Date().toISOString(),
@@ -140,8 +142,10 @@ async function wireFormatE2E(kind: FakeLLMKind, provider: string, serverUrl: str
 
   const blueprint = await extractBlueprint(job, job.transcript, llm);
   job.blueprint = blueprint;
-  const rewritten = await rewriteResume(job, blueprint, llm);
-  job.rewrittenResume = rewritten;
+  const rewritten = await generateSophisticatedResume(job, blueprint, llm);
+  job.rewrittenResume = rewritten.markdown;
+  job.rewrittenResumeJson = rewritten.json;
+  job.resumeMeta = rewritten.meta;
 
   const entries = result.entries;
   const nonNeutral = entries.every(
@@ -156,8 +160,20 @@ async function wireFormatE2E(kind: FakeLLMKind, provider: string, serverUrl: str
   check("ballot cast by all agents", Object.keys(result.ballot).length === agents.length);
   check("blueprint has objections", blueprint.objections.length > 0, `objections=${blueprint.objections.length}`);
   check("blueprint has strengths + required changes", blueprint.strengths.length > 0 && blueprint.requiredChanges.length > 0);
-  check("rewritten resume is markdown with heading", rewritten.startsWith("# ") || rewritten.startsWith("#"), `head=${rewritten.slice(0, 40).replace(/\n/g, " ")}`);
-  check("rewritten resume keeps candidate identity", rewritten.includes("Rohan Mehta"));
+  check("rewritten resume is markdown with heading", rewritten.markdown.startsWith("# "), `head=${rewritten.markdown.slice(0, 40).replace(/\n/g, " ")}`);
+  check("rewritten resume keeps candidate identity", rewritten.markdown.includes("Rohan Mehta"));
+  check("rewritten resume is structured JSON with sections", (() => {
+    try {
+      const parsed = JSON.parse(rewritten.json);
+      return Boolean(parsed.contact?.name && parsed.sections?.experience);
+    } catch {
+      return false;
+    }
+  })());
+  check("resume meta reports role + ATS + moderation", Boolean(
+    rewritten.meta.role && typeof rewritten.meta.atsScore === "number" && typeof rewritten.meta.moderationScore === "number",
+  ));
+  check("resume meta honours the job's location (UK English)", rewritten.meta.locale === "uk", `locale=${rewritten.meta.locale}`);
 }
 
 async function main() {
@@ -209,10 +225,12 @@ async function main() {
           baseResume: resume,
           domain: "SWE",
           sectorFocus: "FinTech payments",
+          location: "New York, USA",
         }),
       });
       check("POST /api/jobs returns 202", createdRes.status === 202, `got ${createdRes.status}`);
       const created = (await createdRes.json()) as JobState;
+      check("POST /api/jobs persists job location", created.jobLocation === "New York, USA", `loc=${created.jobLocation}`);
 
       // Connect to SSE immediately so we capture the live debate + done event.
       const ssePromise = readStreamUntil(
@@ -229,6 +247,7 @@ async function main() {
 
       check("job reached completed", job.status === "completed", String(job.status));
       check("job has verdict + blueprint + rewritten resume", Boolean(job.finalVerdict && job.blueprint && job.rewrittenResume));
+      check("US-located job produced US English resume", job.resumeMeta?.locale === "us", `locale=${job.resumeMeta?.locale}`);
 
       const listRes = (await (await fetch(`${base}/api/jobs`)).json()) as { jobs: JobState[] };
       check("GET /api/jobs lists the evaluation", listRes.jobs.length >= 1, `count=${listRes.jobs.length}`);

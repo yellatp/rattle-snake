@@ -1,0 +1,121 @@
+export default {
+    "role":  "MLOps Engineer",
+    "slug":  "mlops_engineer",
+    "contact":  {
+                    "name":  "",
+                    "location":  "",
+                    "phone":  "",
+                    "email":  "",
+                    "linkedin":  "",
+                    "github":  "",
+                    "portfolio":  ""
+                },
+    "sections":  {
+                     "summary":  {
+                                     "content":  "",
+                                     "editable":  true
+                                 },
+                     "skills":  {
+                                    "categories":  [
+
+                                                   ],
+                                    "editable":  true
+                                },
+                     "experience":  [
+
+                                    ],
+                     "education":  [
+
+                                   ],
+                     "certifications":  [
+
+                                        ],
+                     "coreCompetencies":  [
+
+                                          ]
+                 },
+    "ats_keywords":  [
+                         "MLOps",
+                         "ML platform",
+                         "ML infrastructure",
+                         "MLflow",
+                         "Kubeflow",
+                         "Kubeflow Pipelines",
+                         "AWS SageMaker",
+                         "GCP Vertex AI",
+                         "Azure ML",
+                         "Docker",
+                         "Kubernetes",
+                         "EKS",
+                         "GKE",
+                         "AKS",
+                         "Helm",
+                         "Kustomize",
+                         "Terraform",
+                         "Pulumi",
+                         "GPU",
+                         "CUDA",
+                         "NCCL",
+                         "NVIDIA",
+                         "TPU",
+                         "CI/CD for ML",
+                         "GitHub Actions",
+                         "GitLab CI",
+                         "Jenkins",
+                         "Argo Workflows",
+                         "ArgoCD",
+                         "DVC",
+                         "CML",
+                         "Weights \u0026 Biases",
+                         "Neptune.ai",
+                         "model serving",
+                         "Triton Inference Server",
+                         "TorchServe",
+                         "BentoML",
+                         "Ray Serve",
+                         "Seldon Core",
+                         "KServe",
+                         "FastAPI",
+                         "ONNX",
+                         "TensorRT",
+                         "model optimization",
+                         "inference optimization",
+                         "model monitoring",
+                         "WhyLabs",
+                         "Arize",
+                         "Evidently",
+                         "data drift",
+                         "concept drift",
+                         "drift detection",
+                         "model retraining",
+                         "automated retraining",
+                         "model registry",
+                         "model versioning",
+                         "experiment tracking",
+                         "feature store",
+                         "Feast",
+                         "Tecton",
+                         "canary deployment",
+                         "shadow deployment",
+                         "A/B testing",
+                         "model validation",
+                         "model governance",
+                         "model compliance",
+                         "model lineage",
+                         "model explainability",
+                         "SHAP",
+                         "LIME",
+                         "model accuracy",
+                         "model latency",
+                         "model throughput",
+                         "model cost optimization",
+                         "auto-scaling",
+                         "HPA",
+                         "VPA",
+                         "KEDA",
+                         "Prometheus",
+                         "Grafana",
+                         "model observability"
+                     ],
+    "system_prompt_ref":  "mlops_engineer"
+};

@@ -8,7 +8,7 @@ import type { LLMClient } from "../llm/client.js";
 import { bus } from "../events/bus.js";
 import { runDebate } from "./debateEngine.js";
 import { extractBlueprint } from "./blueprintExtractor.js";
-import { rewriteResume } from "./resumeRewriter.js";
+import { generateSophisticatedResume } from "../resume/engine.js";
 
 /**
  * End-to-end committee orchestration for one job:
@@ -72,11 +72,19 @@ export async function runCommittee(
     store.update(job);
     bus.publish({ type: "blueprint", jobId, blueprint });
 
-    const rewrittenResume = await rewriteResume(job, blueprint, llm);
-    job.rewrittenResume = rewrittenResume;
+    const rewritten = await generateSophisticatedResume(job, blueprint, llm);
+    job.rewrittenResume = rewritten.markdown;
+    job.rewrittenResumeJson = rewritten.json;
+    job.resumeMeta = rewritten.meta;
     job.updatedAt = new Date().toISOString();
     store.update(job);
-    bus.publish({ type: "resume", jobId, rewrittenResume });
+    bus.publish({
+      type: "resume",
+      jobId,
+      rewrittenResume: rewritten.markdown,
+      rewrittenResumeJson: rewritten.json,
+      resumeMeta: rewritten.meta,
+    });
 
     setStatus("completed");
     bus.publish({ type: "done", jobId, job: store.get(jobId)! });

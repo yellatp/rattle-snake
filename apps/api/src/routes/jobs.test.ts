@@ -67,6 +67,62 @@ describe("jobs API", () => {
     expect(done.transcript.length).toBeGreaterThan(0);
   });
 
+  it("produces structured resume JSON + role/ATS/moderation metadata", async () => {
+    const created = await createJob(ctx.app, JD, RESUME);
+    const done = await waitForCompletion(ctx.app, created.id!);
+    expect(done.status).toBe("completed");
+    expect(done.rewrittenResumeJson).toBeTruthy();
+    const parsed = JSON.parse(done.rewrittenResumeJson!);
+    expect(parsed.contact?.name).toBe("Rohan Mehta");
+    expect(parsed.sections?.experience?.length).toBeGreaterThan(0);
+    expect(done.resumeMeta?.role).toBe("swe");
+    expect(done.resumeMeta?.roleLabel).toBe("Software Engineer");
+    expect(done.resumeMeta?.atsScore).toBeGreaterThan(0);
+    expect(done.resumeMeta?.moderationApproved).toBe(true);
+    expect(done.resumeMeta?.iterations).toBe(1);
+    expect(done.resumeMeta?.locale).toBe("us"); // default US for an unlocated JD
+    expect(done.rewrittenResume).toContain("Rohan Mehta");
+  });
+
+  it("persists a job location and drives the UK English variant", async () => {
+    const created = await createJob(ctx.app, JD, RESUME, { location: "London, UK" });
+    expect(created.jobLocation).toBe("London, UK");
+    const done = await waitForCompletion(ctx.app, created.id!);
+    expect(done.jobLocation).toBe("London, UK");
+    expect(done.resumeMeta?.locale).toBe("uk");
+  });
+
+  it("PUT /api/jobs/:id/resume persists JSON edits and re-renders markdown", async () => {
+    const created = await createJob(ctx.app, JD, RESUME);
+    await waitForCompletion(ctx.app, created.id!);
+
+    const edited = JSON.parse((await (await ctx.app.request(`/api/jobs/${created.id}`)).json()).rewrittenResumeJson);
+    edited.sections.summary = { content: "Manually edited summary line." };
+    edited.contact.email = "edited@example.com";
+
+    const res = await ctx.app.request(`/api/jobs/${created.id}/resume`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rewrittenResumeJson: JSON.stringify(edited) }),
+    });
+    expect(res.status).toBe(200);
+    const updated = (await res.json()) as JobState;
+    expect(updated.rewrittenResumeJson).toContain("Manually edited summary line.");
+    expect(updated.rewrittenResume).toContain("Manually edited summary line.");
+    expect(updated.rewrittenResume).toContain("edited@example.com");
+  });
+
+  it("PUT /api/jobs/:id/resume rejects invalid JSON", async () => {
+    const created = await createJob(ctx.app, JD, RESUME);
+    await waitForCompletion(ctx.app, created.id!);
+    const res = await ctx.app.request(`/api/jobs/${created.id}/resume`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rewrittenResumeJson: "{ not valid json" }),
+    });
+    expect(res.status).toBe(400);
+  });
+
   it("auto-detects domain from the JD when omitted", async () => {
     const res = await ctx.app.request("/api/jobs", {
       method: "POST",
@@ -174,12 +230,17 @@ async function drainActiveJobs(store: ReturnType<typeof createApp>["store"]): Pr
   }
 }
 
-function createJob(app: ReturnType<typeof createApp>["app"], jd: string, resume: string) {
+function createJob(
+  app: ReturnType<typeof createApp>["app"],
+  jd: string,
+  resume: string,
+  extra?: Record<string, unknown>,
+) {
   return app
     .request("/api/jobs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ domain: "SWE", jobDescription: jd, baseResume: resume }),
+      body: JSON.stringify({ domain: "SWE", jobDescription: jd, baseResume: resume, ...extra }),
     })
     .then((r) => r.json()) as Promise<JobState>;
 }

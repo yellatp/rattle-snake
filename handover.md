@@ -63,17 +63,25 @@ rattle-snake-v2/
     │   │   │   ├── mock.ts              # offline deterministic responses (tests/demos)
     │   │   │   └── util.ts              # withApiPath (no double /v1) + describeHttpError
     │   │   ├── events/bus.ts          # in-process pub/sub per jobId (SSE source)
-    │   │   ├── db/store.ts            # better-sqlite3 JobStore (jobs table, JSON transcript/blueprint)
+    │   │   ├── db/store.ts            # better-sqlite3 JobStore (jobs table, JSON transcript/blueprint, resume JSON+meta)
     │   │   ├── committee/
     │   │   │   ├── nonNeutrality.ts   # parseDecision()/hasNeutralLanguage() — verdict extraction + enforcement
     │   │   │   ├── agentExecutor.ts   # executeAgentTurn() + retry/redress loop
     │   │   │   ├── debateEngine.ts    # runDebate() rounds + aggregateVotes() weighted consensus
     │   │   │   ├── blueprintExtractor.ts  # LLM-first, rule-based fallback, Zod repair
-    │   │   │   ├── resumeRewriter.ts  # rewriteResume() from blueprint + transcript
     │   │   │   └── runner.ts          # runCommittee() orchestrator, publishes JobEvents
+    │   │   ├── resume/                # V1-ported sophisticated resume engine
+    │   │   │   ├── engine.ts          # generateSophisticatedResume(): gap analysis → role detect → committee-feedback prompt → moderation loop → markdown
+    │   │   │   ├── roleRegistry.ts    # 32 role prompts + templates, DOMAIN_ROLES, resolveRoleSlug (JD title/keyword)
+    │   │   │   ├── locale.ts          # US/UK English variant from job location (detectEnglishLocale + directive)
+    │   │   │   ├── ats.ts             # ATS keyword scorer (JD keywords vs resume, fuzzy Levenshtein)
+    │   │   │   ├── moderator.ts       # LLM quality auditor + buildModeratorFeedback
+    │   │   │   ├── json.ts, serialize.ts, types.ts
+    │   │   │   ├── prompts/*.ts       # 32 V1 role prompts (verbatim port)
+    │   │   │   └── templates/*.ts     # 32 V1 role templates (BOM-stripped JSON wrappers)
     │   │   └── routes/
     │   │       ├── health.ts
-    │   │       └── jobs.ts            # POST/GET/GET:stream/DELETE + SSE endpoint
+    │   │       └── jobs.ts            # POST/GET/GET:stream/DELETE + PUT /:id/resume + SSE endpoint
     │   │   (+ *.test.ts colocated — see "Tests" below)
     │   └── cli/debate.ts              # offline/headless runner (pnpm debate --mock)
     └── web/                   # @rattlesnake/web — Astro 5 SSR (node adapter, port 4321)
@@ -101,13 +109,14 @@ Everything below was built and smoke-tested this session.
 | Non-neutrality enforcer (parse + redress retries) | ✅ |
 | Debate engine: R1 openings → 2× cross-talk → ballot, weighted consensus | ✅ |
 | Blueprint extraction (LLM + rule-based fallback) | ✅ |
-| Resume rewriter (objection-clearing, `[ADD: ...]` placeholders) | ✅ |
+| **Sophisticated role-targeted resume engine (V1 port)** | ✅ `generateSophisticatedResume` — 32 V1 role prompts + templates, JD title/keyword role detection, committee GAP report + expert transcript injected, ATS re-score + LLM quality-moderator loop (max 2 iterations, regenerates on rejection), Markdown + editable JSON + meta (role/ATS%/auditor/iterations) |
+| **US/UK English variant (job location)** | ✅ optional `location` on job creation (New Debate form + `POST /api/jobs`) or auto-detected from the JD → `resumeMeta.locale`; standardized English-variant directive injected into the role prompt (spelling/terminology/dates) + moderator §6 variant check; badge shows "English: US/UK" |
 | CLI runner end-to-end with mock | ✅ `pnpm debate -- --jd samples/fintech-jd.md --resume samples/candidate-resume.md --domain SWE --mock --out samples/rewritten-resume.md` |
 | HTTP API end-to-end with mock | ✅ health, POST /api/jobs, GET /api/jobs/:id (20 entries, verdict SHORTLISTED, blueprint, rewritten resume) |
 | SSE live streaming | ✅ `GET /api/jobs/:id/stream` replays snapshot + pushes events |
 | Web build (Astro SSR) | ✅ `astro build` |
 | Web typecheck | ✅ |
-| **vitest suite** — 68 tests (shared 13 + api 55) | ✅ `pnpm test` — provider adapters/dispatch (21), non-neutrality, consensus math incl. 0.5 tiebreak, redress loop, blueprint fallback, jobs routes E2E (10), domain detection |
+| **vitest suite** — 124 tests (shared 13 + api 111) | ✅ `pnpm test` — provider adapters/dispatch (21), non-neutrality, consensus math incl. 0.5 tiebreak, redress loop, blueprint fallback, jobs routes E2E (14), resume engine/ATS/roleRegistry/serialize/locale (35), domain detection |
 | **Bring-your-own-LLM per run (UI + API)** | ✅ "Bring your own LLM API" panel on the New Debate form (provider/base URL/key/model/temperature, persisted to `localStorage`); `POST /api/jobs` accepts `{ llm: {...} }`; `llmUsed` recorded per job; API key never persisted |
 | **Profile management & settings page** | ✅ `/settings`: profile (name/email), saved resumes, saved JDs, stored LLM connections (`llmConnectionId` on jobs) — keys encrypted at rest (AES-256-GCM, master key `data/.secret`), masked in API responses, never returned |
 | **Production start scripts** | ✅ `node apps/api/dist/index.js` + `node apps/web/dist/server/entry.mjs` both serve (health 200, web 200/renders) |
@@ -121,6 +130,7 @@ Everything below was built and smoke-tested this session.
 - Every agent turn contains `[STRONG POSITIVES] / [HIGH-RISK CONCERNS] / [PIVOT POINT] / [VERDICT] [STRONG HIRE]`.
 - **Bug fixed this session:** `parseDecision` was not uppercasing a case-insensitive marker match — `[strong hire]` produced the invalid lowercase decision `"hire"`. Fixed at `apps/api/src/committee/nonNeutrality.ts:33` (`match[1]!.toUpperCase()`) + regression test.
 - **Mock persona bug fixed (`b360fe6`):** cross-talk/ballot prompts embed the Sector Specialist mandate for every agent, so the mock's tone detector (`system.includes("Sector Specialist")`) gave all 5 agents the same canned sector persona → identical Round 2/3 text. Persona is now derived only from each agent's own role line, with tone-aware debate phrasing. Regression test in `providers.test.ts`.
+- **Role-detection bug fixed this session:** a "Senior Backend Engineer" JD was routed to `data_engineer` by pure keyword overlap. `resolveRoleSlug` now prefers an explicit JD **title signal** (per-domain), then keyword overlap, then the domain flagship; regression tests added (`roleRegistry.test.ts`).
 
 ---
 
