@@ -1,6 +1,7 @@
 import type {
   Blueprint,
   JobState,
+  LlmOverride,
   TranscriptEntry,
   Verdict,
 } from "@rattlesnake/shared";
@@ -13,6 +14,7 @@ export interface CreateJobPayload {
   jobDescription: string;
   baseResume: string;
   sectorFocus?: string;
+  llm?: LlmOverride;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -48,4 +50,4 @@ export function streamUrl(jobId: string): string {
   return `${API_URL}/api/jobs/${jobId}/stream`;
 }
 
-export type { Blueprint, JobState, TranscriptEntry, Verdict };
+export type { Blueprint, JobState, LlmOverride, TranscriptEntry, Verdict };

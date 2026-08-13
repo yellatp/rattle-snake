@@ -2,7 +2,7 @@
 
 > **Purpose:** chronological record of every sprint — when it started, when it completed, what was implemented, and what is still outstanding. Companion to `docs/strategy.md` (plan) and `docs/feature-tracker.md` (requirement-level status).
 > **Cadence:** continuous goal-based sprints (one active at a time, ~hourly/daily), per `docs/strategy.md` §1.
-> **Last updated:** 2026-08-12 20:45
+> **Last updated:** 2026-08-12 22:40
 
 ---
 
@@ -95,9 +95,18 @@
 - **Local run verified** — API on http://localhost:8787 (`mock`/`mock-response-1`), web on http://localhost:4321 ("New Debate · Rattle-Snake V2"), live job via HTTP: `status=completed verdict=SHORTLISTED transcript=20 objections=10 strengths=10` + rewritten markdown resume.
 - **Gate green** — `pnpm test` (64), `pnpm run build` (3/3), `pnpm exec turbo run typecheck` (4/4), `pnpm e2e` ALL PASSED.
 
+### Implemented (Part A3 — mock persona fix + bring-your-own-LLM from the UI)
+- **Mock persona fix** (commit `b360fe6`) — cross-talk/ballot prompts embed the Sector Specialist mandate for **every** agent, which made the mock give all 5 agents the identical sector persona (shallow Round 2/3 copy-paste). Tone is now derived **only from the agent's own role line**, with tone-aware debate phrasing (`recruiter's lens`, `architect's lens`, …). Regression test added.
+- **BYOK — per-run LLM override (UI + API)** — users can now bring their own LLM key/endpoint per run instead of editing server env:
+  - Shared: `llmOverrideSchema` (provider/baseUrl/apiKey/model/temperature) on `POST /api/jobs`; `JobState.llmUsed` records which provider/model actually ran.
+  - API (`apps/api/src/routes/jobs.ts`): builds a throwaway client per job from the override (unknown provider → generic OpenAI-compatible; explicit 400 with the fail-fast message when the override can't resolve). The API key is used **in-memory only** — it is never persisted or returned.
+  - Store: `llm_used` column with a safe `ALTER TABLE` migration for existing DBs.
+  - Web: **New Debate** form → "Bring your own LLM API" panel (provider select with preset defaults, base URL, key, model, temperature), persisted to `localStorage` (browser-only, SSR-safe); run page shows `ran on <provider> <model>`.
+- **Tests (3 new route tests)** — BYOK override records `llmUsed` and never leaks the key; invalid base URL → 400; unresolved override (vLLM without model) → 400. Suite now **68 tests** (13 shared + 55 api); build 3/3; typecheck 4/4; `pnpm e2e` PASSED.
+- **Live verified** — no-override job records `mock/mock-response-1`; override with key records `llmUsed` with no key leak; bad URL → `400`; vLLM-no-model → `400` with actionable message; completed run persists `llmUsed`; web index renders the BYOK panel.
+
 ### Yet to implement / next actions (Part B + C)
-- **Await user-provided** `LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL`.
-- Run CLI + HTTP + web UI flow against the real provider; measure format adherence, redress retry count, blueprint parse rate, rewrite quality.
+- **Part B real-LLM validation** — now possible from the UI via BYOK (paste a provider key on the New Debate form) or via server env (`LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL`). Run the CLI + HTTP + web flow against a real provider; measure format adherence, redress retry count, blueprint parse rate, rewrite quality.
 - Start Docker Desktop, `docker compose up --build`, verify api + web containers.
 - Fix anything surfaced; commit; close sprint.
 
@@ -109,4 +118,4 @@
 |---|---|---|---|
 | Sprint 0 — Foundations | 2026-08-12 | 2026-08-12 | PRD + strategy + feature tracker + architecture + roadmap written |
 | Sprint 1 — Core Completion | 2026-08-12 | 2026-08-12 | 44 tests green, bug fixes, README, Docker files, prod-start verified, git initialized |
-| Sprint 2 — Multi-Provider LLM + Real-LLM Validation | 2026-08-12 18:30 | — | IN PROGRESS — Part A (FR-6 provider layer) implemented + 20 new tests (suite now 64); Part A2 offline-first run fixed + `pnpm e2e` functional suite (all 3 wire formats over real HTTP + API/SSE) PASSED; Part B awaits user LLM endpoint; Part C awaits Docker |
+| Sprint 2 — Multi-Provider LLM + Real-LLM Validation | 2026-08-12 18:30 | — | IN PROGRESS — Part A (FR-6 provider layer) implemented + 20 new tests; Part A2 offline-first run fixed + `pnpm e2e` functional suite PASSED; Part A3 mock persona fix (`b360fe6`) + BYOK per-run LLM overrides from the UI/API (suite now 68); Part B real-LLM validation doable via BYOK or env — awaits a real endpoint; Part C awaits Docker |

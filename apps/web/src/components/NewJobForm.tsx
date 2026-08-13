@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { SyntheticEvent } from "react";
-import { detectDomain, type Domain } from "@rattlesnake/shared";
+import { detectDomain, type Domain, type LlmOverride } from "@rattlesnake/shared";
 import { createJob } from "../lib/api";
 
 const DOMAIN_OPTIONS: { value: Domain; label: string; committee: string }[] = [
@@ -39,6 +39,54 @@ Software Engineer — TravelBuddy (Travel tech), 2019–2021
 Skills: TypeScript, Node.js, Go, PostgreSQL, Redis, Kafka, Docker, Kubernetes,
 AWS, Terraform, CI/CD, TDD, observability (Grafana, Prometheus).`;
 
+const BYOK_STORAGE_KEY = "rattlesnake.byok.v1";
+
+const PROVIDERS: { value: string; label: string; baseUrl: string; model: string }[] = [
+  { value: "custom", label: "Custom (OpenAI-compatible)", baseUrl: "", model: "" },
+  { value: "openai", label: "OpenAI", baseUrl: "https://api.openai.com/v1", model: "gpt-4o-mini" },
+  { value: "anthropic", label: "Anthropic", baseUrl: "https://api.anthropic.com", model: "claude-sonnet-4-5" },
+  { value: "google", label: "Google Gemini", baseUrl: "https://generativelanguage.googleapis.com", model: "gemini-2.5-flash" },
+  { value: "deepseek", label: "DeepSeek", baseUrl: "https://api.deepseek.com/v1", model: "deepseek-chat" },
+  { value: "kimi", label: "Kimi (Moonshot)", baseUrl: "https://api.moonshot.cn/v1", model: "kimi-k2-0905-preview" },
+  { value: "grok", label: "Grok (xAI)", baseUrl: "https://api.x.ai/v1", model: "grok-3-mini" },
+  { value: "groq", label: "Groq", baseUrl: "https://api.groq.com/openai/v1", model: "llama-3.3-70b-versatile" },
+  { value: "qwen", label: "Qwen (Alibaba)", baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1", model: "qwen-plus" },
+  { value: "openrouter", label: "OpenRouter", baseUrl: "https://openrouter.ai/api/v1", model: "openai/gpt-4o-mini" },
+  { value: "ollama", label: "Ollama (local)", baseUrl: "http://localhost:11434/v1", model: "llama3.1" },
+  { value: "vllm", label: "vLLM (local)", baseUrl: "http://localhost:8000/v1", model: "" },
+  { value: "lmstudio", label: "LM Studio (local)", baseUrl: "http://localhost:1234/v1", model: "" },
+  { value: "localai", label: "LocalAI (local)", baseUrl: "http://localhost:8080/v1", model: "" },
+];
+
+interface LlmSettings {
+  enabled: boolean;
+  provider: string;
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+  temperature: string;
+}
+
+const DEFAULT_LLM: LlmSettings = {
+  enabled: false,
+  provider: "openai",
+  baseUrl: "",
+  apiKey: "",
+  model: "",
+  temperature: "0.3",
+};
+
+function loadLlmSettings(): LlmSettings {
+  if (typeof window === "undefined") return DEFAULT_LLM;
+  try {
+    const raw = window.localStorage.getItem(BYOK_STORAGE_KEY);
+    if (!raw) return DEFAULT_LLM;
+    return { ...DEFAULT_LLM, ...(JSON.parse(raw) as Partial<LlmSettings>) };
+  } catch {
+    return DEFAULT_LLM;
+  }
+}
+
 export default function NewJobForm() {
   const [domain, setDomain] = useState<string>("");
   const [sectorFocus, setSectorFocus] = useState("");
@@ -47,6 +95,7 @@ export default function NewJobForm() {
   const [detected, setDetected] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [llm, setLlm] = useState<LlmSettings>(loadLlmSettings);
 
   function handleJdBlur() {
     if (domain) return;
@@ -55,16 +104,44 @@ export default function NewJobForm() {
     if (guess) setDomain(guess);
   }
 
+  function handleProviderChange(provider: string) {
+    const preset = PROVIDERS.find((p) => p.value === provider);
+    setLlm((prev) => ({
+      ...prev,
+      provider,
+      baseUrl: prev.baseUrl || preset?.baseUrl || "",
+      model: prev.model || preset?.model || "",
+    }));
+  }
+
+  function patchLlm(patch: Partial<LlmSettings>) {
+    setLlm((prev) => ({ ...prev, ...patch }));
+  }
+
   async function handleSubmit(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     setSubmitting(true);
     try {
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(BYOK_STORAGE_KEY, JSON.stringify(llm));
+      }
+      const override: LlmOverride | undefined = llm.enabled
+        ? {
+            provider: llm.provider || undefined,
+            baseUrl: llm.baseUrl.trim() || undefined,
+            apiKey: llm.apiKey.trim() || undefined,
+            model: llm.model.trim() || undefined,
+            temperature:
+              llm.temperature !== "" ? Number.parseFloat(llm.temperature) : undefined,
+          }
+        : undefined;
       const job = await createJob({
         domain: domain || undefined,
         jobDescription,
         baseResume,
         sectorFocus: sectorFocus.trim() || undefined,
+        llm: override,
       });
       window.location.href = `/jobs/${job.id}`;
     } catch (err) {
@@ -124,6 +201,88 @@ export default function NewJobForm() {
           onChange={(e) => setSectorFocus(e.target.value)}
           placeholder="Defaults to the domain template's sector specialist"
         />
+      </div>
+
+      <div className="form-row">
+        <label className="checkbox-row">
+          <input
+            type="checkbox"
+            checked={llm.enabled}
+            onChange={(e) => patchLlm({ enabled: e.target.checked })}
+          />
+          Bring your own LLM API{" "}
+          <span className="hint">— endpoint, key and model for this run instead of the server default</span>
+        </label>
+        {llm.enabled && (
+          <div className="llm-box">
+            <div className="grid-2">
+              <div className="form-row">
+                <label htmlFor="llm-provider">Provider</label>
+                <select
+                  id="llm-provider"
+                  value={llm.provider}
+                  onChange={(e) => handleProviderChange(e.target.value)}
+                >
+                  {PROVIDERS.map((p) => (
+                    <option key={p.value} value={p.value}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-row">
+                <label htmlFor="llm-model">Model</label>
+                <input
+                  id="llm-model"
+                  type="text"
+                  value={llm.model}
+                  onChange={(e) => patchLlm({ model: e.target.value })}
+                  placeholder="Required if the provider has no default"
+                />
+              </div>
+            </div>
+            <div className="form-row">
+              <label htmlFor="llm-baseUrl">Base URL</label>
+              <input
+                id="llm-baseUrl"
+                type="text"
+                value={llm.baseUrl}
+                onChange={(e) => patchLlm({ baseUrl: e.target.value })}
+                placeholder="OpenAI-compatible endpoint (preset default is prefilled)"
+              />
+            </div>
+            <div className="form-row">
+              <label htmlFor="llm-apiKey">API key</label>
+              <input
+                id="llm-apiKey"
+                type="password"
+                autoComplete="off"
+                value={llm.apiKey}
+                onChange={(e) => patchLlm({ apiKey: e.target.value })}
+                placeholder="sk-..."
+              />
+            </div>
+            <div className="form-row">
+              <label htmlFor="llm-temperature">
+                Temperature{" "}
+                <span className="hint">(0–2, default 0.3)</span>
+              </label>
+              <input
+                id="llm-temperature"
+                type="number"
+                min={0}
+                max={2}
+                step={0.1}
+                value={llm.temperature}
+                onChange={(e) => patchLlm({ temperature: e.target.value })}
+              />
+            </div>
+            <p className="hint">
+              Stored only in this browser. The key is sent to your API server per run and
+              is never persisted to the database.
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="form-row">

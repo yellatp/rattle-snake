@@ -77,6 +77,8 @@ export interface JobState {
   finalVerdict?: Verdict;
   blueprint?: Blueprint;
   rewrittenResume?: string;
+  /** Non-secret record of which provider/model actually ran this evaluation. */
+  llmUsed?: { provider: string; model: string };
   status: JobStatus;
   error?: string;
   createdAt: string;

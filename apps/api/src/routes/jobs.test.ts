@@ -112,6 +112,56 @@ describe("jobs API", () => {
     });
     expect(res.status).toBe(400);
   });
+
+  it("records llmUsed for BYOK overrides and never persists the API key", async () => {
+    const res = await ctx.app.request("/api/jobs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        domain: "SWE",
+        jobDescription: JD,
+        baseResume: RESUME,
+        llm: { provider: "mock", apiKey: "sk-super-secret", temperature: 0.1 },
+      }),
+    });
+    expect(res.status).toBe(202);
+    const created = (await res.json()) as JobState;
+    expect(created.llmUsed).toEqual({ provider: "mock", model: "mock-response-1" });
+    expect(JSON.stringify(created)).not.toContain("sk-super-secret");
+
+    const done = await waitForCompletion(ctx.app, created.id!);
+    expect(done.status).toBe("completed");
+    expect(done.llmUsed).toEqual({ provider: "mock", model: "mock-response-1" });
+    expect(JSON.stringify(done)).not.toContain("sk-super-secret");
+  });
+
+  it("rejects a BYOK override with an invalid base URL", async () => {
+    const res = await ctx.app.request("/api/jobs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        domain: "SWE",
+        jobDescription: JD,
+        baseResume: RESUME,
+        llm: { provider: "openai", baseUrl: "not-a-url" },
+      }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects a BYOK override that cannot be resolved (missing model)", async () => {
+    const res = await ctx.app.request("/api/jobs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        domain: "SWE",
+        jobDescription: JD,
+        baseResume: RESUME,
+        llm: { provider: "vllm", baseUrl: "http://localhost:8000/v1" },
+      }),
+    });
+    expect(res.status).toBe(400);
+  });
 });
 
 async function drainActiveJobs(store: ReturnType<typeof createApp>["store"]): Promise<void> {

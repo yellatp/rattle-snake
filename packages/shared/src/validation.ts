@@ -3,6 +3,30 @@ import { DOMAINS, type Domain } from "./types.js";
 
 const domainEnum = z.enum(DOMAINS as [Domain, ...Domain[]]);
 
+/**
+ * Bring-your-own-LLM override (BYOK). Sent from the web app per run; the
+ * server uses it to build a throwaway client and never persists the key.
+ * The API key is used in-memory only.
+ */
+export const llmOverrideSchema = z.object({
+  /** Provider name — any known preset or an unknown name = OpenAI-compatible. */
+  provider: z.string().min(1).max(60).optional(),
+  baseUrl: z.string().url().max(300).optional(),
+  apiKey: z.string().min(1).max(200).optional(),
+  model: z.string().min(1).max(120).optional(),
+  temperature: z.number().min(0).max(2).optional(),
+});
+
+export type LlmOverride = z.infer<typeof llmOverrideSchema>;
+
+/** Non-secret record of which provider/model actually ran an evaluation. */
+export const llmUsedSchema = z.object({
+  provider: z.string(),
+  model: z.string(),
+});
+
+export type LlmUsed = z.infer<typeof llmUsedSchema>;
+
 /** Request body for creating a new committee job. */
 export const createJobSchema = z.object({
   domain: domainEnum.optional(),
@@ -19,6 +43,8 @@ export const createJobSchema = z.object({
     .string()
     .max(60)
     .optional(),
+  /** Bring-your-own-LLM: per-run override of the server's env provider. */
+  llm: llmOverrideSchema.optional(),
 });
 
 export type CreateJobInput = z.infer<typeof createJobSchema>;
@@ -54,6 +80,7 @@ export const jobSchema = z.object({
   finalVerdict: z.enum(["SHORTLISTED", "REJECTED"]).optional(),
   blueprint: blueprintSchema.optional(),
   rewrittenResume: z.string().optional(),
+  llmUsed: llmUsedSchema.optional(),
   status: z.enum(["pending", "debating", "rewriting", "completed", "failed"]),
   error: z.string().optional(),
   createdAt: z.string(),

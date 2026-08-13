@@ -66,6 +66,12 @@ LLM_MODEL=llama3.1
 
 **Supported providers:** `openai` · `anthropic` · `google` · `deepseek` · `kimi` · `grok` · `groq` · `qwen` · `openrouter` · `ollama` · `vllm` · `lmstudio` · `localai` · `custom` · `mock`. Override anything with `LLM_BASE_URL` / `LLM_MODEL`. Any **other** vendor = use `LLM_PROVIDER=custom` (or any unknown name) with an OpenAI-compatible `LLM_BASE_URL` — full provider table in [docs/architecture.md §11](docs/architecture.md).
 
+### Bring your own LLM — per run, from the UI
+
+No env edits needed. On the **New Debate** form tick **"Bring your own LLM API"**: pick a provider (or a custom OpenAI-compatible endpoint), paste your API key + model, and that run uses your endpoint instead of the server default. Settings are remembered in your browser; the key is sent to the API **per run only** and is never written to the database. Every run records which provider/model actually ran it (`llmUsed`), shown on the run page.
+
+Per-run overrides are also accepted in the API: `POST /api/jobs` with `{ ..., llm: { provider, baseUrl, apiKey, model, temperature } }`.
+
 ---
 
 ## CLI (no server)
@@ -120,7 +126,7 @@ Full detail: [docs/architecture.md](docs/architecture.md).
 | Method | Path | Description |
 |---|---|---|
 | GET | `/health` | provider/model/debate config |
-| POST | `/api/jobs` | `{ domain?, jobDescription, baseResume, sectorFocus? }` → 202 + job |
+| POST | `/api/jobs` | `{ domain?, jobDescription, baseResume, sectorFocus?, llm? }` → 202 + job (see BYOK below) |
 | GET | `/api/jobs` | compact list |
 | GET | `/api/jobs/:id` | full state (transcript, verdict, blueprint, rewritten resume) |
 | GET | `/api/jobs/:id/stream` | SSE live events (`job`, `entry`, `status`, `verdict`, `blueprint`, `resume`, `done`, `error`, `ping`) |

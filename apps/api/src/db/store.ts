@@ -13,6 +13,7 @@ interface JobRow {
   final_verdict: string | null;
   blueprint: string | null;
   rewritten_resume: string | null;
+  llm_used: string | null;
   status: string;
   error: string | null;
   created_at: string;
@@ -56,6 +57,13 @@ export class JobStore {
         updated_at TEXT NOT NULL
       );
     `);
+    // Migration for DBs created before the bring-your-own-LLM feature.
+    // SQLite has no "ADD COLUMN IF NOT EXISTS", so ignore the duplicate error.
+    try {
+      this.db.exec(`ALTER TABLE jobs ADD COLUMN llm_used TEXT`);
+    } catch {
+      /* column already exists */
+    }
   }
 
   create(job: JobState): void {
@@ -63,9 +71,9 @@ export class JobStore {
       .prepare(
         `INSERT INTO jobs
           (id, domain, job_description, base_resume, sector_focus, transcript,
-           final_verdict, blueprint, rewritten_resume, status, error, created_at, updated_at)
+           final_verdict, blueprint, rewritten_resume, llm_used, status, error, created_at, updated_at)
          VALUES (@id, @domain, @jobDescription, @baseResume, @sectorFocus, @transcript,
-           @finalVerdict, @blueprint, @rewrittenResume, @status, @error, @createdAt, @updatedAt)`,
+           @finalVerdict, @blueprint, @rewrittenResume, @llmUsed, @status, @error, @createdAt, @updatedAt)`,
       )
       .run(rowFromJob(job));
   }
@@ -97,6 +105,7 @@ export class JobStore {
            final_verdict = @finalVerdict,
            blueprint = @blueprint,
            rewritten_resume = @rewrittenResume,
+           llm_used = @llmUsed,
            status = @status,
            error = @error,
            updated_at = @updatedAt
@@ -125,6 +134,7 @@ function rowFromJob(job: JobState): Record<string, unknown> {
     finalVerdict: job.finalVerdict ?? null,
     blueprint: job.blueprint ? JSON.stringify(job.blueprint) : null,
     rewrittenResume: job.rewrittenResume ?? null,
+    llmUsed: job.llmUsed ? JSON.stringify(job.llmUsed) : null,
     status: job.status,
     error: job.error ?? null,
     createdAt: job.createdAt,
@@ -145,6 +155,12 @@ function jobFromRow(row: JobRow): JobState {
       ? parseJSON<Blueprint>(row.blueprint, undefined as unknown as Blueprint)
       : undefined,
     rewrittenResume: row.rewritten_resume ?? undefined,
+    llmUsed: row.llm_used
+      ? parseJSON<{ provider: string; model: string }>(
+          row.llm_used,
+          undefined as unknown as { provider: string; model: string },
+        )
+      : undefined,
     status: row.status as JobState["status"],
     error: row.error ?? undefined,
     createdAt: row.created_at,

@@ -139,6 +139,13 @@ export default function DebateView({ jobId, initialJob = null }: Props) {
           </div>
           <p className="hint mono">
             {job.id} · sector focus: {job.sectorFocus ?? "template default"}
+            {job.llmUsed && (
+              <>
+                {" · "}
+                ran on <span className="tag">{job.llmUsed.provider}</span>{" "}
+                <span className="mono">{job.llmUsed.model}</span>
+              </>
+            )}
           </p>
         </div>
       </header>

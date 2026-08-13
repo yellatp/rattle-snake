@@ -1,6 +1,6 @@
 # Rattle-Snake V2 — Handover
 
-> **Last updated:** 2026-08-12 (Sprint 2 — Part A: multi-provider LLM layer shipped; Part A2: offline-first run fixed + `pnpm e2e` functional suite passing) · Session handover for a fresh assistant session.
+> **Last updated:** 2026-08-12 (Sprint 2 — Part A: multi-provider LLM layer shipped; Part A2: offline-first run fixed + `pnpm e2e` functional suite passing; Part A3: mock persona fix `b360fe6` + bring-your-own-LLM per-run overrides from the UI) · Session handover for a fresh assistant session.
 > Location: `C:\Users\prudh\Desktop\GitHub_Manager\Rattle-Snake-V2`
 > This is a **brand-new project** (not the v1 `Rattle-Snake` repo). **Git repo initialized** (commit `30342c4`, branch default).
 > Governance docs: `docs/PRD.md` (requirements), `docs/strategy.md` (agile sprint plan), `docs/feature-tracker.md` (requirement → status → code references), `docs/architecture.md`, `docs/roadmap.md`.
@@ -107,7 +107,8 @@ Everything below was built and smoke-tested this session.
 | SSE live streaming | ✅ `GET /api/jobs/:id/stream` replays snapshot + pushes events |
 | Web build (Astro SSR) | ✅ `astro build` |
 | Web typecheck | ✅ |
-| **vitest suite** — 64 tests (shared 13 + api 51) | ✅ `pnpm test` — provider adapters/dispatch (20), non-neutrality, consensus math incl. 0.5 tiebreak, redress loop, blueprint fallback, jobs routes E2E, domain detection |
+| **vitest suite** — 68 tests (shared 13 + api 55) | ✅ `pnpm test` — provider adapters/dispatch (21), non-neutrality, consensus math incl. 0.5 tiebreak, redress loop, blueprint fallback, jobs routes E2E (10), domain detection |
+| **Bring-your-own-LLM per run (UI + API)** | ✅ "Bring your own LLM API" panel on the New Debate form (provider/base URL/key/model/temperature, persisted to `localStorage`); `POST /api/jobs` accepts `{ llm: {...} }`; `llmUsed` recorded per job; API key never persisted |
 | **Production start scripts** | ✅ `node apps/api/dist/index.js` + `node apps/web/dist/server/entry.mjs` both serve (health 200, web 200/renders) |
 | **Docs (PRD / strategy / feature-tracker / architecture / roadmap)** | ✅ all in `docs/` |
 | **README.md** | ✅ |
@@ -118,6 +119,7 @@ Everything below was built and smoke-tested this session.
 - Job `msqoq644vxbtve81` → `status=completed`, `finalVerdict=SHORTLISTED`, 20 transcript entries (5 opening + 10 cross-talk + 5 ballot), blueprint with 10 objections/10 strengths/10 required changes, rewritten resume in Markdown.
 - Every agent turn contains `[STRONG POSITIVES] / [HIGH-RISK CONCERNS] / [PIVOT POINT] / [VERDICT] [STRONG HIRE]`.
 - **Bug fixed this session:** `parseDecision` was not uppercasing a case-insensitive marker match — `[strong hire]` produced the invalid lowercase decision `"hire"`. Fixed at `apps/api/src/committee/nonNeutrality.ts:33` (`match[1]!.toUpperCase()`) + regression test.
+- **Mock persona bug fixed (`b360fe6`):** cross-talk/ballot prompts embed the Sector Specialist mandate for every agent, so the mock's tone detector (`system.includes("Sector Specialist")`) gave all 5 agents the same canned sector persona → identical Round 2/3 text. Persona is now derived only from each agent's own role line, with tone-aware debate phrasing. Regression test in `providers.test.ts`.
 
 ---
 
@@ -136,7 +138,8 @@ pnpm dev:web                       # Astro on http://localhost:4321
 - CLI (no server): `pnpm debate -- --jd samples/fintech-jd.md --resume samples/candidate-resume.md --domain SWE --mock --out out.md`
 - Ports: API **8787**, Web **4321**. Frontend reads `PUBLIC_API_URL` (default `http://localhost:8787`).
 - SQLite data: `data/rattle-snake.db` (gitignored). On restart, jobs left mid-debate are marked `failed`.
-- **Tests/checks:** `pnpm test` (64 tests) · `pnpm typecheck` (4/4) · `pnpm run build` (3/3) · `pnpm e2e` (functional: all 3 provider wire formats over real HTTP + full API/SSE flow — no keys needed).
+- **Tests/checks:** `pnpm test` (68 tests) · `pnpm typecheck` (4/4) · `pnpm run build` (3/3) · `pnpm e2e` (functional: all 3 provider wire formats over real HTTP + full API/SSE flow — no keys needed).
+- **Bring your own LLM (no env edit):** New Debate form → "Bring your own LLM API" → pick a provider, paste key/model → that run uses it. Settings persist in the browser; the key is sent per-run only and never stored in SQLite. Per-run override is also `POST /api/jobs { ..., llm: { provider, baseUrl, apiKey, model, temperature } }`. Every job records `llmUsed` (provider/model).
 - **Docker:** `docker compose up --build` (api+web, offline `mock` default) · `docker compose --profile llm up --build` (adds local Ollama). Note: image build unverified locally (Docker Desktop off).
 
 ---
@@ -151,6 +154,7 @@ pnpm dev:web                       # Astro on http://localhost:4321
 - **SSE bus is in-process only** (`events/bus.ts`). Swap for Redis pub/sub before scaling out (roadmap).
 - **Mock LLM** (`createMockClient` in `apps/api/src/llm/mock.ts`) produces schema-compliant outputs so the entire pipeline (including blueprint rule-based fallback) runs offline.
 - **Provider layer is fetch-based** — no `openai` SDK dependency. `createLLMClient(config)` (`apps/api/src/llm/client.ts`) dispatches on `LLM_PROVIDER`: `anthropic` → Messages adapter, `google` → Gemini adapter, known OpenAI-compatible names / unknown / `custom` → `/chat/completions`, `mock` → offline. `resolveEndpointConfig` resolves key/model/baseUrl with preset defaults + provider key-env fallbacks and fails fast with actionable errors.
+- **Per-job BYOK overrides** (`apps/api/src/routes/jobs.ts`): when `POST /api/jobs` includes `llm`, the handler merges it over the env config and builds a throwaway client via `createLLMClient({...config, llm: merged})`; a missing `provider` with an env-default of `mock` becomes `custom` (so a pasted key/base URL can't silently hit the mock). Client build errors surface as `400` with the fail-fast message. The API key never touches `JobState` — only `llmUsed: { provider, model }` is stored (`llm_used` column, `ALTER TABLE` migration in `db/store.ts`). Web settings live in `localStorage` key `rattlesnake.byok.v1` (SSR-safe guard on `window`).
 - **Job isolation**: every evaluation is its own `JobState` + row in SQLite; a crash mid-debate loses only in-flight turns.
 
 ---
@@ -160,7 +164,7 @@ pnpm dev:web                       # Astro on http://localhost:4321
 Sprint plan + full status per requirement: `docs/strategy.md` + `docs/feature-tracker.md`.
 
 ### P1 — Required to call the app "complete"
-1. **Test against a real LLM (Sprint 2 Part B).** Everything is verified against the offline mock and the fake-wire-format functional suite (`pnpm e2e`), but not yet against a **real** provider. **The user chose to supply an OpenAI-compatible endpoint** (base URL + key + model) but the details are NOT yet provided — ask for them. Then run the CLI + a full UI flow and sanity-check: response format adherence, redress retries actually firing, blueprint JSON parse rate, rewriter output quality.
+1. **Test against a real LLM (Sprint 2 Part B).** Everything is verified against the offline mock and the fake-wire-format functional suite (`pnpm e2e`), but not yet against a **real** provider. **Two ways now:** (a) ask the user for an OpenAI-compatible endpoint (base URL + key + model) and set it in `.env`, or (b) the user pastes their key/model on the New Debate form via **BYOK** (per-run override, no env change) — this also exercises the new override path. Then run the CLI + a full UI flow and sanity-check: response format adherence, redress retries actually firing, blueprint JSON parse rate, rewriter output quality.
 2. **Verify the Docker image build (Sprint 2 Part C)** — compose file validated (now defaults to offline `mock`), but `docker build` was not run (Docker Desktop was off).
 
 ### P2 — Production hardening
@@ -210,7 +214,7 @@ PUBLIC_API_URL=http://localhost:8787   # used by the web app
 ## 9. API surface
 
 - `GET  /health` — status + LLM provider/model + debate config
-- `POST /api/jobs` — `{ domain?, jobDescription, baseResume, sectorFocus? }` → 202 + job
+- `POST /api/jobs` — `{ domain?, jobDescription, baseResume, sectorFocus?, llm? }` → 202 + job; `llm` is a per-run BYOK override `{ provider?, baseUrl?, apiKey?, model?, temperature? }` (key used in-memory only, never stored)
 - `GET  /api/jobs` — summary list
 - `GET  /api/jobs/:id` — full job (transcript, verdict, blueprint, rewrittenResume)
 - `GET  /api/jobs/:id/stream` — SSE (`job` snapshot then `entry|status|verdict|blueprint|resume|done|error|ping`)

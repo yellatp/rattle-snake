@@ -9,7 +9,7 @@ import {
 } from "@rattlesnake/shared";
 import type { AppConfig } from "../config.js";
 import type { JobStore } from "../db/store.js";
-import type { LLMClient } from "../llm/client.js";
+import { createLLMClient, type LLMClient } from "../llm/client.js";
 import { bus } from "../events/bus.js";
 import { runCommittee } from "../committee/runner.js";
 
@@ -28,6 +28,30 @@ export function createJobsRouter(store: JobStore, llm: LLMClient, config: AppCon
     const body = c.req.valid("json") as CreateJobInput;
     const domain = body.domain ?? detectDomain(body.jobDescription) ?? "SWE";
 
+    // Bring-your-own-LLM: a per-run override builds a throwaway client. The
+    // API key is used in-memory only and is never persisted on the job.
+    let jobLlm = llm;
+    if (body.llm && Object.keys(body.llm).length > 0) {
+      const llmConfig = {
+        ...config.llm,
+        ...body.llm,
+        // A user who supplies an endpoint/key but no provider name gets the
+        // generic OpenAI-compatible client instead of silently falling back
+        // to the server's default provider (which may be the offline mock).
+        provider:
+          body.llm.provider ??
+          (config.llm.provider !== "mock" ? config.llm.provider : "custom"),
+      };
+      try {
+        jobLlm = createLLMClient({ ...config, llm: llmConfig });
+      } catch (err) {
+        return c.json(
+          { error: err instanceof Error ? err.message : String(err) },
+          400,
+        );
+      }
+    }
+
     const job: JobState = {
       id: newJobId(),
       domain,
@@ -36,6 +60,7 @@ export function createJobsRouter(store: JobStore, llm: LLMClient, config: AppCon
       sectorFocus: body.sectorFocus,
       transcript: [],
       status: "pending",
+      llmUsed: { provider: jobLlm.provider, model: jobLlm.model },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -44,7 +69,7 @@ export function createJobsRouter(store: JobStore, llm: LLMClient, config: AppCon
 
     // Fire-and-forget: the runner publishes progress over SSE and persists
     // every state change, so the client can stream the live debate.
-    void runCommittee(job.id, store, llm, config);
+    void runCommittee(job.id, store, jobLlm, config);
 
     return c.json(job, 202);
   });
