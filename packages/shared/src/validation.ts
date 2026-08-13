@@ -45,9 +45,61 @@ export const createJobSchema = z.object({
     .optional(),
   /** Bring-your-own-LLM: per-run override of the server's env provider. */
   llm: llmOverrideSchema.optional(),
+  /** Use a saved LLM connection (key stored server-side, encrypted). */
+  llmConnectionId: z.string().min(1).max(80).optional(),
 });
 
 export type CreateJobInput = z.infer<typeof createJobSchema>;
+
+/** Single-user profile payload (PUT /api/profile). */
+export const profileSchema = z.object({
+  name: z.string().max(120).default(""),
+  email: z.string().max(200).default(""),
+});
+
+export type ProfileInput = z.infer<typeof profileSchema>;
+
+/** Saved resume payload. */
+export const savedResumeSchema = z.object({
+  title: z.string().min(1, "Title is required.").max(120),
+  content: z
+    .string()
+    .min(50, "Resume is too short — paste the full resume.")
+    .max(60_000),
+});
+
+export type SavedResumeInput = z.infer<typeof savedResumeSchema>;
+
+/** Saved job description payload. */
+export const savedJdSchema = z.object({
+  title: z.string().min(1, "Title is required.").max(120),
+  content: z
+    .string()
+    .min(80, "Job description is too short — paste the full JD.")
+    .max(40_000),
+});
+
+export type SavedJdInput = z.infer<typeof savedJdSchema>;
+
+/**
+ * LLM connection payload. `apiKey` is optional on create (local providers
+ * need none) and on update (omitting it keeps the stored key).
+ */
+export const llmConnectionSchema = z.object({
+  name: z.string().min(1, "Name is required.").max(120),
+  provider: z.string().min(1).max(60),
+  baseUrl: z.string().url().max(300).optional().nullable(),
+  model: z.string().min(1).max(120).optional().nullable(),
+  temperature: z.number().min(0).max(2).optional().nullable(),
+  apiKey: z.string().min(1).max(200).optional(),
+  isDefault: z.boolean().optional(),
+});
+
+export type LlmConnectionInput = z.infer<typeof llmConnectionSchema>;
+
+/** Partial update for a saved item or connection. */
+export const llmConnectionUpdateSchema = llmConnectionSchema.partial();
+export type LlmConnectionUpdateInput = z.infer<typeof llmConnectionUpdateSchema>;
 
 export const transcriptEntrySchema = z.object({
   id: z.string(),

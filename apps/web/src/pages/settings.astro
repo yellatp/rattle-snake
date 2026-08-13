@@ -1,0 +1,28 @@
+---
+import Layout from "../layouts/Layout.astro";
+import SettingsView from "../components/SettingsView.tsx";
+---
+<Layout title="Settings">
+  <section class="settings-hero">
+    <h1>Settings</h1>
+    <p class="lead">
+      Your profile, saved resumes, saved job descriptions and stored LLM API
+      connections. Saved items are available as one-click pickers on the New
+      Debate form; LLM API keys are encrypted at rest on your server.
+    </p>
+  </section>
+
+  <SettingsView client:load />
+</Layout>
+
+<style>
+  .settings-hero h1 {
+    font-size: 30px;
+    margin: 0 0 8px;
+  }
+  .settings-hero .lead {
+    color: var(--text-dim);
+    max-width: 780px;
+    margin: 0 0 24px;
+  }
+</style>

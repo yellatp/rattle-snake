@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { SyntheticEvent } from "react";
 import { detectDomain, type Domain, type LlmOverride } from "@rattlesnake/shared";
-import { createJob } from "../lib/api";
+import { createJob, listConnections, listJds, listResumes } from "../lib/api";
+import type { SavedJd, SavedResume, LlmConnection } from "@rattlesnake/shared";
+import { PROVIDERS } from "../lib/providers";
 
 const DOMAIN_OPTIONS: { value: Domain; label: string; committee: string }[] = [
   { value: "SWE", label: "Software Engineering", committee: "Priya · Alex · Marcus · Elena · Liam" },
@@ -41,23 +43,6 @@ AWS, Terraform, CI/CD, TDD, observability (Grafana, Prometheus).`;
 
 const BYOK_STORAGE_KEY = "rattlesnake.byok.v1";
 
-const PROVIDERS: { value: string; label: string; baseUrl: string; model: string }[] = [
-  { value: "custom", label: "Custom (OpenAI-compatible)", baseUrl: "", model: "" },
-  { value: "openai", label: "OpenAI", baseUrl: "https://api.openai.com/v1", model: "gpt-4o-mini" },
-  { value: "anthropic", label: "Anthropic", baseUrl: "https://api.anthropic.com", model: "claude-sonnet-4-5" },
-  { value: "google", label: "Google Gemini", baseUrl: "https://generativelanguage.googleapis.com", model: "gemini-2.5-flash" },
-  { value: "deepseek", label: "DeepSeek", baseUrl: "https://api.deepseek.com/v1", model: "deepseek-chat" },
-  { value: "kimi", label: "Kimi (Moonshot)", baseUrl: "https://api.moonshot.cn/v1", model: "kimi-k2-0905-preview" },
-  { value: "grok", label: "Grok (xAI)", baseUrl: "https://api.x.ai/v1", model: "grok-3-mini" },
-  { value: "groq", label: "Groq", baseUrl: "https://api.groq.com/openai/v1", model: "llama-3.3-70b-versatile" },
-  { value: "qwen", label: "Qwen (Alibaba)", baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1", model: "qwen-plus" },
-  { value: "openrouter", label: "OpenRouter", baseUrl: "https://openrouter.ai/api/v1", model: "openai/gpt-4o-mini" },
-  { value: "ollama", label: "Ollama (local)", baseUrl: "http://localhost:11434/v1", model: "llama3.1" },
-  { value: "vllm", label: "vLLM (local)", baseUrl: "http://localhost:8000/v1", model: "" },
-  { value: "lmstudio", label: "LM Studio (local)", baseUrl: "http://localhost:1234/v1", model: "" },
-  { value: "localai", label: "LocalAI (local)", baseUrl: "http://localhost:8080/v1", model: "" },
-];
-
 interface LlmSettings {
   enabled: boolean;
   provider: string;
@@ -96,6 +81,34 @@ export default function NewJobForm() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [llm, setLlm] = useState<LlmSettings>(loadLlmSettings);
+  const [savedResumes, setSavedResumes] = useState<SavedResume[]>([]);
+  const [savedJds, setSavedJds] = useState<SavedJd[]>([]);
+  const [connections, setConnections] = useState<LlmConnection[]>([]);
+  const [connectionId, setConnectionId] = useState("");
+  const [pickerError, setPickerError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    void Promise.all([
+      listResumes(),
+      listJds(),
+      listConnections(),
+    ])
+      .then(([r, j, c]) => {
+        if (!alive) return;
+        setSavedResumes(r);
+        setSavedJds(j);
+        setConnections(c);
+        const def = c.find((conn) => conn.isDefault);
+        if (def) setConnectionId(def.id);
+      })
+      .catch((err) => {
+        if (alive) setPickerError(err instanceof Error ? err.message : String(err));
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   function handleJdBlur() {
     if (domain) return;
@@ -142,6 +155,7 @@ export default function NewJobForm() {
         baseResume,
         sectorFocus: sectorFocus.trim() || undefined,
         llm: override,
+        llmConnectionId: connectionId || undefined,
       });
       window.location.href = `/jobs/${job.id}`;
     } catch (err) {
@@ -204,10 +218,37 @@ export default function NewJobForm() {
       </div>
 
       <div className="form-row">
+        <label htmlFor="llm-connection">
+          Saved LLM API{" "}
+          <span className="hint">(from Settings — stored encrypted server-side)</span>
+        </label>
+        <select
+          id="llm-connection"
+          value={connectionId}
+          onChange={(e) => {
+            const value = e.target.value;
+            setConnectionId(value);
+            if (value && llm.enabled) patchLlm({ enabled: false });
+          }}
+        >
+          <option value="">Server default / mock</option>
+          {connections.map((conn) => (
+            <option key={conn.id} value={conn.id}>
+              {conn.name} — {conn.provider}
+              {conn.model ? ` (${conn.model})` : ""}
+              {conn.isDefault ? " ⭐" : ""}
+            </option>
+          ))}
+        </select>
+        {pickerError && <p className="hint error-hint">{pickerError}</p>}
+      </div>
+
+      <div className="form-row">
         <label className="checkbox-row">
           <input
             type="checkbox"
             checked={llm.enabled}
+            disabled={Boolean(connectionId)}
             onChange={(e) => patchLlm({ enabled: e.target.checked })}
           />
           Bring your own LLM API{" "}
@@ -286,7 +327,29 @@ export default function NewJobForm() {
       </div>
 
       <div className="form-row">
-        <label htmlFor="jd">Job description</label>
+        <label htmlFor="jd">
+          Job description{" "}
+          {savedJds.length > 0 && (
+            <span className="hint">— or load a saved one</span>
+          )}
+        </label>
+        {savedJds.length > 0 && (
+          <select
+            aria-label="Saved job descriptions"
+            value=""
+            onChange={(e) => {
+              const found = savedJds.find((j) => j.id === e.target.value);
+              if (found) setJobDescription(found.content);
+            }}
+          >
+            <option value="">Load saved JD…</option>
+            {savedJds.map((j) => (
+              <option key={j.id} value={j.id}>
+                {j.title}
+              </option>
+            ))}
+          </select>
+        )}
         <textarea
           id="jd"
           rows={9}
@@ -298,7 +361,29 @@ export default function NewJobForm() {
       </div>
 
       <div className="form-row">
-        <label htmlFor="resume">Base resume</label>
+        <label htmlFor="resume">
+          Base resume{" "}
+          {savedResumes.length > 0 && (
+            <span className="hint">— or load a saved one</span>
+          )}
+        </label>
+        {savedResumes.length > 0 && (
+          <select
+            aria-label="Saved resumes"
+            value=""
+            onChange={(e) => {
+              const found = savedResumes.find((r) => r.id === e.target.value);
+              if (found) setBaseResume(found.content);
+            }}
+          >
+            <option value="">Load saved resume…</option>
+            {savedResumes.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.title}
+              </option>
+            ))}
+          </select>
+        )}
         <textarea
           id="resume"
           rows={12}

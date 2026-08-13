@@ -28,20 +28,46 @@ export function createJobsRouter(store: JobStore, llm: LLMClient, config: AppCon
     const body = c.req.valid("json") as CreateJobInput;
     const domain = body.domain ?? detectDomain(body.jobDescription) ?? "SWE";
 
-    // Bring-your-own-LLM: a per-run override builds a throwaway client. The
-    // API key is used in-memory only and is never persisted on the job.
+    // Bring-your-own-LLM comes from one of two mutually exclusive sources:
+    // an inline `llm` override (key over the wire, never stored) or a stored
+    // `llmConnectionId` (key decrypted server-side, never sent to the client).
     let jobLlm = llm;
-    if (body.llm && Object.keys(body.llm).length > 0) {
-      const llmConfig = {
+    const hasInline = body.llm !== undefined && Object.keys(body.llm).length > 0;
+    if (hasInline && body.llmConnectionId) {
+      return c.json(
+        { error: "Provide either `llm` or `llmConnectionId`, not both." },
+        400,
+      );
+    }
+
+    let llmConfig = config.llm;
+    if (body.llmConnectionId) {
+      const conn = store.getLlmConnectionWithKey(body.llmConnectionId);
+      if (!conn) {
+        return c.json({ error: "LLM connection not found." }, 400);
+      }
+      llmConfig = {
+        ...config.llm,
+        provider: conn.provider,
+        baseUrl: conn.baseUrl || config.llm.baseUrl,
+        apiKey: conn.apiKey || config.llm.apiKey || "",
+        model: conn.model || config.llm.model,
+        temperature: conn.temperature ?? config.llm.temperature,
+      };
+    } else if (hasInline) {
+      llmConfig = {
         ...config.llm,
         ...body.llm,
         // A user who supplies an endpoint/key but no provider name gets the
         // generic OpenAI-compatible client instead of silently falling back
         // to the server's default provider (which may be the offline mock).
         provider:
-          body.llm.provider ??
+          body.llm!.provider ??
           (config.llm.provider !== "mock" ? config.llm.provider : "custom"),
       };
+    }
+
+    if (body.llmConnectionId || hasInline) {
       try {
         jobLlm = createLLMClient({ ...config, llm: llmConfig });
       } catch (err) {

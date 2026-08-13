@@ -72,6 +72,16 @@ No env edits needed. On the **New Debate** form tick **"Bring your own LLM API"*
 
 Per-run overrides are also accepted in the API: `POST /api/jobs` with `{ ..., llm: { provider, baseUrl, apiKey, model, temperature } }`.
 
+### Settings — profile, saved resumes/JDs, stored LLM connections
+
+The **Settings** page (`/settings`) manages your persistent data:
+
+- **Profile** — name + email, shown and editable from one panel.
+- **Saved resumes & job descriptions** — save any resume/JD once, then load it into the New Debate form with a dropdown (no more re-pasting).
+- **LLM API connections** — store named connections (provider, base URL, model, temperature, API key) and pick them per run from a dropdown. One connection can be marked **default** so it's pre-selected on every new debate.
+
+Connection API keys are **encrypted at rest** (AES-256-GCM) with a per-install master key kept in `data/.secret` (auto-generated, mode `0600`). The API never returns a stored key — responses include `hasKey` + a masked preview (e.g. `sk-abc1…xyz`) — and it is only ever decrypted server-side for the run it belongs to. A job may use a stored connection (`POST /api/jobs` with `llmConnectionId`) **or** an inline `llm` override, never both (400 otherwise).
+
 ---
 
 ## CLI (no server)
@@ -126,11 +136,18 @@ Full detail: [docs/architecture.md](docs/architecture.md).
 | Method | Path | Description |
 |---|---|---|
 | GET | `/health` | provider/model/debate config |
-| POST | `/api/jobs` | `{ domain?, jobDescription, baseResume, sectorFocus?, llm? }` → 202 + job (see BYOK below) |
+| POST | `/api/jobs` | `{ domain?, jobDescription, baseResume, sectorFocus?, llm?, llmConnectionId? }` → 202 + job (see BYOK below); `llm` and `llmConnectionId` are mutually exclusive |
 | GET | `/api/jobs` | compact list |
 | GET | `/api/jobs/:id` | full state (transcript, verdict, blueprint, rewritten resume) |
 | GET | `/api/jobs/:id/stream` | SSE live events (`job`, `entry`, `status`, `verdict`, `blueprint`, `resume`, `done`, `error`, `ping`) |
 | DELETE | `/api/jobs/:id` | 204 / 404 |
+| GET/PUT | `/api/profile` | single-user profile (`{ name, email }`) |
+| GET/POST | `/api/resumes` | list / create saved resume (`{ title, content }`) |
+| PUT/DELETE | `/api/resumes/:id` | update / delete saved resume |
+| GET/POST | `/api/jds` | list / create saved job description (`{ title, content }`) |
+| PUT/DELETE | `/api/jds/:id` | update / delete saved JD |
+| GET/POST | `/api/llm-connections` | list / create stored connection (`{ name, provider, baseUrl?, model?, temperature?, apiKey?, isDefault? }`) — key stored encrypted, response has `hasKey` + `keyPreview` only |
+| PUT/DELETE | `/api/llm-connections/:id` | update (omit `apiKey` to keep the stored one) / delete |
 
 ## Environment reference
 
@@ -149,6 +166,8 @@ See `.env.example` and [docs/architecture.md §10](docs/architecture.md).
 | `DATABASE_PATH` | `./data/rattle-snake.db` | SQLite file |
 | `CORS_ORIGINS` | empty | comma list; empty = allow all |
 | `PUBLIC_API_URL` | `http://localhost:8787` | web→api base URL |
+
+> The API writes a per-install master key to `data/.secret` (next to the SQLite file) the first time it starts; it is used to encrypt stored LLM API keys. Back it up together with the database, and never commit it.
 
 ---
 

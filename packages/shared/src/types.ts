@@ -85,6 +85,50 @@ export interface JobState {
   updatedAt: string;
 }
 
+/** Single-user profile stored server-side. */
+export interface UserProfile {
+  name: string;
+  email: string;
+  updatedAt: string;
+}
+
+/** A saved resume the user can reuse across runs. */
+export interface SavedResume {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** A saved job description the user can reuse across runs. */
+export interface SavedJd {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * A stored LLM API connection. The API key lives server-side (encrypted at
+ * rest) and is never returned to the client — `hasKey`/`keyPreview` indicate
+ * whether one is set.
+ */
+export interface LlmConnection {
+  id: string;
+  name: string;
+  provider: string;
+  baseUrl?: string;
+  model?: string;
+  temperature?: number;
+  hasKey: boolean;
+  keyPreview?: string;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 /** Event pushed to SSE subscribers during a live debate. */
 export type JobEvent =
   | { type: "status"; jobId: string; status: JobStatus; message?: string }

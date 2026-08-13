@@ -5,6 +5,7 @@ import { createLLMClient } from "./llm/client.js";
 import { JobStore } from "./db/store.js";
 import { createJobsRouter } from "./routes/jobs.js";
 import { createHealthRouter } from "./routes/health.js";
+import { createSettingsRouter } from "./routes/settings.js";
 
 export function createApp() {
   const config = loadConfig();
@@ -28,13 +29,14 @@ export function createApp() {
     cors({
       origin:
         config.corsOrigins.length > 0 ? config.corsOrigins : (origin) => origin || "*",
-      allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
+      allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
       allowHeaders: ["Content-Type"],
     }),
   );
 
   app.route("/health", createHealthRouter(config, llm));
   app.route("/api/jobs", createJobsRouter(store, llm, config));
+  app.route("/api", createSettingsRouter(store));
 
   return { app, store, llm, config };
 }

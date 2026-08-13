@@ -105,8 +105,14 @@
 - **Tests (3 new route tests)** — BYOK override records `llmUsed` and never leaks the key; invalid base URL → 400; unresolved override (vLLM without model) → 400. Suite now **68 tests** (13 shared + 55 api); build 3/3; typecheck 4/4; `pnpm e2e` PASSED.
 - **Live verified** — no-override job records `mock/mock-response-1`; override with key records `llmUsed` with no key leak; bad URL → `400`; vLLM-no-model → `400` with actionable message; completed run persists `llmUsed`; web index renders the BYOK panel.
 
+### Implemented (Part A4 — profile management, settings page, stored LLM connections)
+- **Settings page** (`/settings`) + nav link — single-user **profile** (name/email), **saved resumes**, **saved job descriptions**, and **LLM API connections**, each with add/edit/delete and one-click pickers on the New Debate form (saved resume/JD fill the textareas; a saved connection, or a marked **default**, is sent as `llmConnectionId`).
+- **Backend** — new SQLite tables (`profile`, `saved_resumes`, `saved_jds`, `llm_connections`) with CRUD via `apps/api/src/routes/settings.ts` mounted at `/api` (CORS now allows `PUT`); `apps/api/src/security/crypto.ts` AES-256-GCM encryption of stored API keys using a per-install master key in `data/.secret` (0600, auto-created); `jobs.ts` resolves `llmConnectionId` (decrypted server-side only, never returned) and rejects both-inline-and-connection with 400; `isDefault` clears other defaults.
+- **Shared** — `UserProfile`, `SavedResume`, `SavedJd`, `LlmConnection` types + `profileSchema`/`savedResumeSchema`/`savedJdSchema`/`llmConnectionSchema`/`llmConnectionUpdateSchema`; `createJobSchema.llmConnectionId`.
+- **Tests (14 new)** — settings CRUD, encrypted-at-rest round-trip, key masking (never in responses), update-without-key keeps key, update-with-key replaces it, default clearing, plus jobs×connection integration (both-provided → 400, unknown → 400, run via `llmConnectionId` records `llmUsed`, key never leaks). Suite now **82 tests** (13 shared + 69 api); build 3/3; typecheck 4/4.
+
 ### Yet to implement / next actions (Part B + C)
-- **Part B real-LLM validation** — now possible from the UI via BYOK (paste a provider key on the New Debate form) or via server env (`LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL`). Run the CLI + HTTP + web flow against a real provider; measure format adherence, redress retry count, blueprint parse rate, rewrite quality.
+- **Part B real-LLM validation** — now possible from the UI via BYOK (paste a provider key on the New Debate form), via a stored Settings connection, or via server env (`LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL`). Run the CLI + HTTP + web flow against a real provider; measure format adherence, redress retry count, blueprint parse rate, rewrite quality.
 - Start Docker Desktop, `docker compose up --build`, verify api + web containers.
 - Fix anything surfaced; commit; close sprint.
 
@@ -118,4 +124,4 @@
 |---|---|---|---|
 | Sprint 0 — Foundations | 2026-08-12 | 2026-08-12 | PRD + strategy + feature tracker + architecture + roadmap written |
 | Sprint 1 — Core Completion | 2026-08-12 | 2026-08-12 | 44 tests green, bug fixes, README, Docker files, prod-start verified, git initialized |
-| Sprint 2 — Multi-Provider LLM + Real-LLM Validation | 2026-08-12 18:30 | — | IN PROGRESS — Part A (FR-6 provider layer) implemented + 20 new tests; Part A2 offline-first run fixed + `pnpm e2e` functional suite PASSED; Part A3 mock persona fix (`b360fe6`) + BYOK per-run LLM overrides from the UI/API (suite now 68); Part B real-LLM validation doable via BYOK or env — awaits a real endpoint; Part C awaits Docker |
+| Sprint 2 — Multi-Provider LLM + Real-LLM Validation | 2026-08-12 18:30 | — | IN PROGRESS — Part A (FR-6 provider layer) implemented + 20 new tests; Part A2 offline-first run fixed + `pnpm e2e` functional suite PASSED; Part A3 mock persona fix (`b360fe6`) + BYOK per-run LLM overrides from the UI/API (suite now 68); Part A4 profile management + `/settings` page + saved resumes/JDs + encrypted stored LLM connections (`llmConnectionId`, suite now 82); Part B real-LLM validation doable via BYOK, Settings, or env — awaits a real endpoint; Part C awaits Docker |

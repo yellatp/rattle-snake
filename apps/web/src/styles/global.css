@@ -638,3 +638,91 @@ select:focus {
   letter-spacing: 0.05em;
 }
 
+/* ---------- Settings ---------- */
+
+.settings-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.settings-section h2 {
+  font-size: 16px;
+  margin: 0 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.saved-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-2);
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+
+.saved-item-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.saved-item-title {
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+
+.saved-item-meta {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.saved-item-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+.default-badge {
+  color: var(--accent-2);
+  border-color: rgba(83, 216, 160, 0.5);
+}
+
+.conn-key {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.empty-note {
+  color: var(--text-dim);
+  font-size: 13px;
+  margin: 0;
+}
+
+.editor-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  background: var(--bg-soft);
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.editor-form .grid-2 {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.error-hint {
+  color: var(--reject);
+}
+
+

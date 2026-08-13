@@ -1,6 +1,6 @@
 # Rattle-Snake V2 — Handover
 
-> **Last updated:** 2026-08-12 (Sprint 2 — Part A: multi-provider LLM layer shipped; Part A2: offline-first run fixed + `pnpm e2e` functional suite passing; Part A3: mock persona fix `b360fe6` + bring-your-own-LLM per-run overrides from the UI) · Session handover for a fresh assistant session.
+> **Last updated:** 2026-08-12 (Sprint 2 — Part A: multi-provider LLM layer shipped; Part A2: offline-first run fixed + `pnpm e2e` functional suite passing; Part A3: mock persona fix `b360fe6` + bring-your-own-LLM per-run overrides from the UI; Part A4: profile management + `/settings` page + saved resumes/JDs + encrypted stored LLM connections) · Session handover for a fresh assistant session.
 > Location: `C:\Users\prudh\Desktop\GitHub_Manager\Rattle-Snake-V2`
 > This is a **brand-new project** (not the v1 `Rattle-Snake` repo). **Git repo initialized** (commit `30342c4`, branch default).
 > Governance docs: `docs/PRD.md` (requirements), `docs/strategy.md` (agile sprint plan), `docs/feature-tracker.md` (requirement → status → code references), `docs/architecture.md`, `docs/roadmap.md`.
@@ -109,6 +109,7 @@ Everything below was built and smoke-tested this session.
 | Web typecheck | ✅ |
 | **vitest suite** — 68 tests (shared 13 + api 55) | ✅ `pnpm test` — provider adapters/dispatch (21), non-neutrality, consensus math incl. 0.5 tiebreak, redress loop, blueprint fallback, jobs routes E2E (10), domain detection |
 | **Bring-your-own-LLM per run (UI + API)** | ✅ "Bring your own LLM API" panel on the New Debate form (provider/base URL/key/model/temperature, persisted to `localStorage`); `POST /api/jobs` accepts `{ llm: {...} }`; `llmUsed` recorded per job; API key never persisted |
+| **Profile management & settings page** | ✅ `/settings`: profile (name/email), saved resumes, saved JDs, stored LLM connections (`llmConnectionId` on jobs) — keys encrypted at rest (AES-256-GCM, master key `data/.secret`), masked in API responses, never returned |
 | **Production start scripts** | ✅ `node apps/api/dist/index.js` + `node apps/web/dist/server/entry.mjs` both serve (health 200, web 200/renders) |
 | **Docs (PRD / strategy / feature-tracker / architecture / roadmap)** | ✅ all in `docs/` |
 | **README.md** | ✅ |
@@ -138,8 +139,9 @@ pnpm dev:web                       # Astro on http://localhost:4321
 - CLI (no server): `pnpm debate -- --jd samples/fintech-jd.md --resume samples/candidate-resume.md --domain SWE --mock --out out.md`
 - Ports: API **8787**, Web **4321**. Frontend reads `PUBLIC_API_URL` (default `http://localhost:8787`).
 - SQLite data: `data/rattle-snake.db` (gitignored). On restart, jobs left mid-debate are marked `failed`.
-- **Tests/checks:** `pnpm test` (68 tests) · `pnpm typecheck` (4/4) · `pnpm run build` (3/3) · `pnpm e2e` (functional: all 3 provider wire formats over real HTTP + full API/SSE flow — no keys needed).
+- **Tests/checks:** `pnpm test` (82 tests) · `pnpm typecheck` (4/4) · `pnpm run build` (3/3) · `pnpm e2e` (functional: all 3 provider wire formats over real HTTP + full API/SSE flow — no keys needed).
 - **Bring your own LLM (no env edit):** New Debate form → "Bring your own LLM API" → pick a provider, paste key/model → that run uses it. Settings persist in the browser; the key is sent per-run only and never stored in SQLite. Per-run override is also `POST /api/jobs { ..., llm: { provider, baseUrl, apiKey, model, temperature } }`. Every job records `llmUsed` (provider/model).
+- **Settings page (`/settings`):** profile (name/email); saved resumes + JDs (one-click load into the New Debate form); stored **LLM API connections** with a picker on the form + an optional **default**. Stored keys are **encrypted at rest** (AES-256-GCM via `apps/api/src/security/crypto.ts`) with a per-install master key auto-created at `data/.secret` (0600) next to the SQLite file — back it up with the DB. API responses only ever expose `hasKey` + a masked `keyPreview`; the key is decrypted server-side just for the run. Jobs accept `llmConnectionId` (mutually exclusive with inline `llm`, 400 if both).
 - **Docker:** `docker compose up --build` (api+web, offline `mock` default) · `docker compose --profile llm up --build` (adds local Ollama). Note: image build unverified locally (Docker Desktop off).
 
 ---
@@ -154,7 +156,8 @@ pnpm dev:web                       # Astro on http://localhost:4321
 - **SSE bus is in-process only** (`events/bus.ts`). Swap for Redis pub/sub before scaling out (roadmap).
 - **Mock LLM** (`createMockClient` in `apps/api/src/llm/mock.ts`) produces schema-compliant outputs so the entire pipeline (including blueprint rule-based fallback) runs offline.
 - **Provider layer is fetch-based** — no `openai` SDK dependency. `createLLMClient(config)` (`apps/api/src/llm/client.ts`) dispatches on `LLM_PROVIDER`: `anthropic` → Messages adapter, `google` → Gemini adapter, known OpenAI-compatible names / unknown / `custom` → `/chat/completions`, `mock` → offline. `resolveEndpointConfig` resolves key/model/baseUrl with preset defaults + provider key-env fallbacks and fails fast with actionable errors.
-- **Per-job BYOK overrides** (`apps/api/src/routes/jobs.ts`): when `POST /api/jobs` includes `llm`, the handler merges it over the env config and builds a throwaway client via `createLLMClient({...config, llm: merged})`; a missing `provider` with an env-default of `mock` becomes `custom` (so a pasted key/base URL can't silently hit the mock). Client build errors surface as `400` with the fail-fast message. The API key never touches `JobState` — only `llmUsed: { provider, model }` is stored (`llm_used` column, `ALTER TABLE` migration in `db/store.ts`). Web settings live in `localStorage` key `rattlesnake.byok.v1` (SSR-safe guard on `window`).
+- **Per-job BYOK overrides** (`apps/api/src/routes/jobs.ts`): when `POST /api/jobs` includes `llm`, the handler merges it over the env config and builds a throwaway client via `createLLMClient({...config, llm: merged})`; a missing `provider` with an env-default of `mock` becomes `custom` (so a pasted key/base URL can't silently hit the mock). Client build errors surface as `400` with the fail-fast message. The API key never touches `JobState` — only `llmUsed: { provider, model }` is stored (`llm_used` column, `ALTER TABLE` migration in `db/store.ts`). Web settings live in `localStorage` key `rattlesnake.byok.v1` (SSR-safe guard on `window`). The same handler also accepts **`llmConnectionId`** (from `/settings`): the stored connection's key is decrypted server-side via `store.getLlmConnectionWithKey()` and merged into the config; `llm` + `llmConnectionId` together → `400`.
+- **Settings/encryption** (`apps/api/src/routes/settings.ts`, `apps/api/src/db/store.ts`, `apps/api/src/security/crypto.ts`): `profile` (single row id=1), `saved_resumes`, `saved_jds`, `llm_connections` tables created in the store constructor. `loadOrCreateSecret` writes `data/.secret` next to the DB (0600; in-memory random secret for `:memory:` DBs in tests). `encryptSecret`/`decryptSecret` = AES-256-GCM (`iv:authTag:ciphertext`, base64). `LlmConnection` API shape is `{ id, name, provider, baseUrl?, model?, temperature?, hasKey, keyPreview?, isDefault, createdAt, updatedAt }` — never the raw key. `isDefault` clears other defaults on create/update. CORS `allowMethods` now includes `PUT`.
 - **Job isolation**: every evaluation is its own `JobState` + row in SQLite; a crash mid-debate loses only in-flight turns.
 
 ---
@@ -214,8 +217,12 @@ PUBLIC_API_URL=http://localhost:8787   # used by the web app
 ## 9. API surface
 
 - `GET  /health` — status + LLM provider/model + debate config
-- `POST /api/jobs` — `{ domain?, jobDescription, baseResume, sectorFocus?, llm? }` → 202 + job; `llm` is a per-run BYOK override `{ provider?, baseUrl?, apiKey?, model?, temperature? }` (key used in-memory only, never stored)
+- `POST /api/jobs` — `{ domain?, jobDescription, baseResume, sectorFocus?, llm?, llmConnectionId? }` → 202 + job; `llm` is a per-run BYOK override `{ provider?, baseUrl?, apiKey?, model?, temperature? }` (key used in-memory only, never stored); `llmConnectionId` references a stored Settings connection (mutually exclusive with `llm`)
 - `GET  /api/jobs` — summary list
 - `GET  /api/jobs/:id` — full job (transcript, verdict, blueprint, rewrittenResume)
 - `GET  /api/jobs/:id/stream` — SSE (`job` snapshot then `entry|status|verdict|blueprint|resume|done|error|ping`)
 - `DELETE /api/jobs/:id`
+- `GET/PUT /api/profile` — `{ name, email }`
+- `GET/POST /api/resumes`, `PUT/DELETE /api/resumes/:id` — `{ title, content }`
+- `GET/POST /api/jds`, `PUT/DELETE /api/jds/:id` — `{ title, content }`
+- `GET/POST /api/llm-connections`, `PUT/DELETE /api/llm-connections/:id` — `{ name, provider, baseUrl?, model?, temperature?, apiKey?, isDefault? }`; responses return `hasKey` + `keyPreview`, never the raw key; omit `apiKey` on PUT to keep the stored one

@@ -1,8 +1,16 @@
 import type {
   Blueprint,
   JobState,
+  LlmConnection,
+  LlmConnectionInput,
+  LlmConnectionUpdateInput,
   LlmOverride,
+  SavedJd,
+  SavedJdInput,
+  SavedResume,
+  SavedResumeInput,
   TranscriptEntry,
+  UserProfile,
   Verdict,
 } from "@rattlesnake/shared";
 
@@ -15,6 +23,7 @@ export interface CreateJobPayload {
   baseResume: string;
   sectorFocus?: string;
   llm?: LlmOverride;
+  llmConnectionId?: string;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -50,4 +59,108 @@ export function streamUrl(jobId: string): string {
   return `${API_URL}/api/jobs/${jobId}/stream`;
 }
 
-export type { Blueprint, JobState, LlmOverride, TranscriptEntry, Verdict };
+// --- Profile -----------------------------------------------------------------
+
+export function getProfile(): Promise<UserProfile> {
+  return request<UserProfile>("/api/profile");
+}
+
+export function saveProfile(input: {
+  name: string;
+  email: string;
+}): Promise<UserProfile> {
+  return request<UserProfile>("/api/profile", {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
+
+// --- Saved resumes ------------------------------------------------------------
+
+export async function listResumes(): Promise<SavedResume[]> {
+  const data = await request<{ items: SavedResume[] }>("/api/resumes");
+  return data.items;
+}
+
+export function createResume(input: SavedResumeInput): Promise<SavedResume> {
+  return request<SavedResume>("/api/resumes", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateResume(id: string, input: SavedResumeInput): Promise<SavedResume> {
+  return request<SavedResume>(`/api/resumes/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
+
+export function deleteResume(id: string): Promise<void> {
+  return request<void>(`/api/resumes/${id}`, { method: "DELETE" });
+}
+
+// --- Saved JDs ----------------------------------------------------------------
+
+export async function listJds(): Promise<SavedJd[]> {
+  const data = await request<{ items: SavedJd[] }>("/api/jds");
+  return data.items;
+}
+
+export function createJd(input: SavedJdInput): Promise<SavedJd> {
+  return request<SavedJd>("/api/jds", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateJd(id: string, input: SavedJdInput): Promise<SavedJd> {
+  return request<SavedJd>(`/api/jds/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
+
+export function deleteJd(id: string): Promise<void> {
+  return request<void>(`/api/jds/${id}`, { method: "DELETE" });
+}
+
+// --- LLM connections --------------------------------------------------------------
+
+export async function listConnections(): Promise<LlmConnection[]> {
+  const data = await request<{ items: LlmConnection[] }>("/api/llm-connections");
+  return data.items;
+}
+
+export function createConnection(input: LlmConnectionInput): Promise<LlmConnection> {
+  return request<LlmConnection>("/api/llm-connections", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateConnection(
+  id: string,
+  input: LlmConnectionUpdateInput,
+): Promise<LlmConnection> {
+  return request<LlmConnection>(`/api/llm-connections/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
+
+export function deleteConnection(id: string): Promise<void> {
+  return request<void>(`/api/llm-connections/${id}`, { method: "DELETE" });
+}
+
+export type {
+  Blueprint,
+  JobState,
+  LlmConnection,
+  LlmOverride,
+  SavedJd,
+  SavedResume,
+  TranscriptEntry,
+  UserProfile,
+  Verdict,
+};
