@@ -55,17 +55,13 @@ const MOCK_PIVOTS: Record<string, string> = {
 };
 
 /**
- * Offline mock client (PRD FR-6.7). Returns deterministic, correctly-formatted
- * responses so the whole pipeline (non-neutrality enforcer, blueprint
- * extractor, rewriter) can be exercised end-to-end without any LLM running.
+ * Deterministic, correctly-formatted mock response for a system/user prompt.
+ * Shared by the offline mock client AND the fake local LLM servers used by the
+ * functional test suite (which proves each provider wire format over real HTTP).
  */
-export function createMockClient(): LLMClient {
-  return {
-    provider: "mock",
-    model: "mock-response-1",
-    async complete(system, _user) {
-      if (system.includes("Debate-Driven Resume Transformer")) {
-        return `# Rohan Mehta
+export function mockResponseFor(system: string, _user: string): string {
+  if (system.includes("Debate-Driven Resume Transformer")) {
+    return `# Rohan Mehta
 Senior Backend Engineer — Event-Driven Distributed Systems
 Bengaluru, India · rohan.mehta@example.com
 
@@ -102,36 +98,49 @@ Terraform · CI/CD, TDD, observability (Prometheus/Grafana), incident response
 [ADD: explicit PCI-DSS training/certification if applicable]
 [ADD: numbers for throughput (e.g., events/sec processed) to strengthen the sector-fit case]
 `;
-      }
+  }
 
-      const nameMatch = system.match(/You are ([A-Za-z .]+), acting as the ([^.\n]+)\./);
-      const name = nameMatch?.[1]?.trim() ?? "Committee Member";
-      const role = nameMatch?.[2]?.trim() ?? "Committee Member";
+  const nameMatch = system.match(/You are ([A-Za-z .]+), acting as the ([^.\n]+)\./);
+  const name = nameMatch?.[1]?.trim() ?? "Committee Member";
+  const role = nameMatch?.[2]?.trim() ?? "Committee Member";
 
-      const tone =
-        system.includes("Sector Specialist") || role.toLowerCase().includes("sector")
-          ? "sector"
-          : role.toLowerCase().includes("recruiter")
-            ? "recruiter"
-            : role.toLowerCase().includes("architect") ||
-                role.toLowerCase().includes("data scientist") ||
-                role.toLowerCase().includes("quant")
-              ? "architect"
-              : role.toLowerCase().includes("lead") ||
-                  role.toLowerCase().includes("desk")
-                ? "lead"
-                : "manager";
+  const tone =
+    system.includes("Sector Specialist") || role.toLowerCase().includes("sector")
+      ? "sector"
+      : role.toLowerCase().includes("recruiter")
+        ? "recruiter"
+        : role.toLowerCase().includes("architect") ||
+            role.toLowerCase().includes("data scientist") ||
+            role.toLowerCase().includes("quant")
+          ? "architect"
+          : role.toLowerCase().includes("lead") ||
+              role.toLowerCase().includes("desk")
+            ? "lead"
+            : "manager";
 
-      const reasons = MOCK_REASONS[tone] ?? MOCK_REASONS["manager"]!;
-      const concerns = MOCK_CONCERNS[tone] ?? MOCK_CONCERNS["manager"]!;
-      const pivot = MOCK_PIVOTS[tone] ?? MOCK_PIVOTS["manager"]!;
+  const reasons = MOCK_REASONS[tone] ?? MOCK_REASONS["manager"]!;
+  const concerns = MOCK_CONCERNS[tone] ?? MOCK_CONCERNS["manager"]!;
+  const pivot = MOCK_PIVOTS[tone] ?? MOCK_PIVOTS["manager"]!;
 
-      const isBallot = system.includes("PHASE — FINAL BALLOT");
-      if (isBallot) {
-        return `[DEBATE RESPONSE]\n- ${name}: balancing the committee's evidence, my position is unchanged. ${reasons[0] ?? ""} outweighs the concerns.\n\n[PIVOT POINT]\n- ${pivot}\n\n[VERDICT]\n[STRONG HIRE] — ${reasons[0] ?? "the evidence supports proceeding."}`;
-      }
+  const isBallot = system.includes("PHASE — FINAL BALLOT");
+  if (isBallot) {
+    return `[DEBATE RESPONSE]\n- ${name}: balancing the committee's evidence, my position is unchanged. ${reasons[0] ?? ""} outweighs the concerns.\n\n[PIVOT POINT]\n- ${pivot}\n\n[VERDICT]\n[STRONG HIRE] — ${reasons[0] ?? "the evidence supports proceeding."}`;
+  }
 
-      return `[STRONG POSITIVES]\n- ${reasons[0] ?? "strong, concrete evidence of capability"}\n- ${reasons[1] ?? "record aligns with the role"}\n\n[HIGH-RISK CONCERNS]\n- ${concerns[0] ?? "one or more material gaps"}\n- ${concerns[1] ?? "unverified claims"}\n\n[DEBATE RESPONSE]\n- As ${name}, I weigh the transcript evidence and note the sector specialist's domain lens.\n\n[PIVOT POINT]\n- ${pivot}\n\n[VERDICT]\n[STRONG HIRE] — ${reasons[0] ?? "evidence outweighs risk"}.`;
+  return `[STRONG POSITIVES]\n- ${reasons[0] ?? "strong, concrete evidence of capability"}\n- ${reasons[1] ?? "record aligns with the role"}\n\n[HIGH-RISK CONCERNS]\n- ${concerns[0] ?? "one or more material gaps"}\n- ${concerns[1] ?? "unverified claims"}\n\n[DEBATE RESPONSE]\n- As ${name}, I weigh the transcript evidence and note the sector specialist's domain lens.\n\n[PIVOT POINT]\n- ${pivot}\n\n[VERDICT]\n[STRONG HIRE] — ${reasons[0] ?? "evidence outweighs risk"}.`;
+}
+
+/**
+ * Offline mock client (PRD FR-6.7). Returns deterministic, correctly-formatted
+ * responses so the whole pipeline (non-neutrality enforcer, blueprint
+ * extractor, rewriter) can be exercised end-to-end without any LLM running.
+ */
+export function createMockClient(): LLMClient {
+  return {
+    provider: "mock",
+    model: "mock-response-1",
+    async complete(system, user) {
+      return mockResponseFor(system, user);
     },
   };
 }

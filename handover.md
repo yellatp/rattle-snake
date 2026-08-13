@@ -1,6 +1,6 @@
 # Rattle-Snake V2 — Handover
 
-> **Last updated:** 2026-08-12 (Sprint 2 — Part A: multi-provider LLM layer shipped) · Session handover for a fresh assistant session.
+> **Last updated:** 2026-08-12 (Sprint 2 — Part A: multi-provider LLM layer shipped; Part A2: offline-first run fixed + `pnpm e2e` functional suite passing) · Session handover for a fresh assistant session.
 > Location: `C:\Users\prudh\Desktop\GitHub_Manager\Rattle-Snake-V2`
 > This is a **brand-new project** (not the v1 `Rattle-Snake` repo). **Git repo initialized** (commit `30342c4`, branch default).
 > Governance docs: `docs/PRD.md` (requirements), `docs/strategy.md` (agile sprint plan), `docs/feature-tracker.md` (requirement → status → code references), `docs/architecture.md`, `docs/roadmap.md`.
@@ -131,14 +131,13 @@ pnpm dev:api                       # API on http://localhost:8787
 pnpm dev:web                       # Astro on http://localhost:4321
 ```
 
-- **Default LLM = OpenAI-compatible at `http://localhost:11434/v1` (Ollama)** with model `llama3.1`. Point `LLM_BASE_URL` at Ollama / vLLM / LocalAI / LM Studio.
-- **Or any supported provider** via `LLM_PROVIDER`: `openai` · `anthropic` · `google` · `deepseek` · `kimi` · `grok` · `groq` · `qwen` · `openrouter` · `ollama` · `vllm` · `lmstudio` · `localai` · `custom` · `mock`. Keys: set `LLM_API_KEY` or the provider's standard env var (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `DEEPSEEK_API_KEY`, `MOONSHOT_API_KEY`, `XAI_API_KEY`, `GROQ_API_KEY`, `DASHSCOPE_API_KEY`, `OPENROUTER_API_KEY`). Unknown provider names + `LLM_BASE_URL` = generic OpenAI-compatible. Full table: `docs/architecture.md §11`.
-- **No LLM?** set `LLM_PROVIDER=mock` for fully offline runs.
+- **Default LLM = offline `mock`** (zero config). Set `LLM_PROVIDER` to use a real provider: `openai` · `anthropic` · `google` · `deepseek` · `kimi` · `grok` · `groq` · `qwen` · `openrouter` · `ollama` · `vllm` · `lmstudio` · `localai` · `custom` · `mock`. Keys: set `LLM_API_KEY` or the provider's standard env var (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `DEEPSEEK_API_KEY`, `MOONSHOT_API_KEY`, `XAI_API_KEY`, `GROQ_API_KEY`, `DASHSCOPE_API_KEY`, `OPENROUTER_API_KEY`). Unknown provider names + `LLM_BASE_URL` = generic OpenAI-compatible. Full table: `docs/architecture.md §11`.
+- **`.env` is loaded by code** (`apps/api/src/env.ts` via dotenv): `apps/api/.env` first, then repo-root `.env`. Without this the process silently used defaults (and crashed on the old `openai` default).
 - CLI (no server): `pnpm debate -- --jd samples/fintech-jd.md --resume samples/candidate-resume.md --domain SWE --mock --out out.md`
 - Ports: API **8787**, Web **4321**. Frontend reads `PUBLIC_API_URL` (default `http://localhost:8787`).
 - SQLite data: `data/rattle-snake.db` (gitignored). On restart, jobs left mid-debate are marked `failed`.
-- **Tests/checks:** `pnpm test` (44 tests) · `pnpm typecheck` · `pnpm run build`.
-- **Docker:** `docker compose up --build` (api+web) · `docker compose --profile llm up --build` (adds local Ollama). Note: image build unverified locally (Docker Desktop off).
+- **Tests/checks:** `pnpm test` (64 tests) · `pnpm typecheck` (4/4) · `pnpm run build` (3/3) · `pnpm e2e` (functional: all 3 provider wire formats over real HTTP + full API/SSE flow — no keys needed).
+- **Docker:** `docker compose up --build` (api+web, offline `mock` default) · `docker compose --profile llm up --build` (adds local Ollama). Note: image build unverified locally (Docker Desktop off).
 
 ---
 
@@ -161,8 +160,8 @@ pnpm dev:web                       # Astro on http://localhost:4321
 Sprint plan + full status per requirement: `docs/strategy.md` + `docs/feature-tracker.md`.
 
 ### P1 — Required to call the app "complete"
-1. **Test against a real LLM (Sprint 2 Part B).** Everything so far is verified with the mock provider only. **The user chose to supply an OpenAI-compatible endpoint** (base URL + key + model) but the details are NOT yet provided — ask for them. Then run the CLI + a full UI flow and sanity-check: response format adherence, redress retries actually firing, blueprint JSON parse rate, rewriter output quality.
-2. **Verify the Docker image build (Sprint 2 Part C)** — compose file validated, but `docker build` was not run (Docker Desktop was off).
+1. **Test against a real LLM (Sprint 2 Part B).** Everything is verified against the offline mock and the fake-wire-format functional suite (`pnpm e2e`), but not yet against a **real** provider. **The user chose to supply an OpenAI-compatible endpoint** (base URL + key + model) but the details are NOT yet provided — ask for them. Then run the CLI + a full UI flow and sanity-check: response format adherence, redress retries actually firing, blueprint JSON parse rate, rewriter output quality.
+2. **Verify the Docker image build (Sprint 2 Part C)** — compose file validated (now defaults to offline `mock`), but `docker build` was not run (Docker Desktop was off).
 
 ### P2 — Production hardening
 3. **Basic auth** for the web/API (self-hosted exposure). Simple token via middleware or basic-auth Hono package.
@@ -185,6 +184,7 @@ Sprint plan + full status per requirement: `docs/strategy.md` + `docs/feature-tr
 - OS **Windows**, shell **PowerShell 5.1**, Node **v22.20.0**, pnpm **10.33.2**, Turbo **2.10.9**, Astro **5.18.2**, Hono **4.x**, better-sqlite3 **11.10.0**, React **19**.
 - `pnpm.onlyBuiltDependencies` in root `package.json` is required so `better-sqlite3` / `esbuild` / `sharp` build scripts run (pnpm 10 blocks them by default).
 - PowerShell 5.1 `Invoke-RestMethod` mangles UTF-8 (em-dashes) when posting; use `curl.exe --data-binary @file.json` for API testing (or PS7).
+- **`.env` is not loaded automatically** — `apps/api/src/env.ts` (`loadEnv()`) must run at the entry point (it does: `src/index.ts`, `cli/debate.ts`, `cli/functional-test.ts`). It reads `apps/api/.env` first, then repo-root `.env`. The old default `LLM_PROVIDER=openai` + missing loader caused a boot-time crash (`missing API key`); default is now `mock`.
 - Turbo prints a benign `node.exe` PowerShell "RemoteException" on success — ignore it; check `Tasks: N successful`.
 - `noUncheckedIndexedAccess: true` is on everywhere — use `!`/`??` for map/array access (several fixes already applied for this).
 - **Non-ASCII chars in source (—, ·, ⇒) are fine and intentional** (prompt quality), UTF-8 files.
@@ -195,7 +195,7 @@ Sprint plan + full status per requirement: `docs/strategy.md` + `docs/feature-tr
 
 ```
 API_PORT=8787
-LLM_PROVIDER=openai            # openai|anthropic|google|deepseek|kimi|grok|groq|qwen|openrouter|ollama|vllm|lmstudio|localai|custom|mock (unknown name = OpenAI-compatible)
+LLM_PROVIDER=mock               # mock is the offline default; openai|anthropic|google|deepseek|kimi|grok|groq|qwen|openrouter|ollama|vllm|lmstudio|localai|custom|mock (unknown name = OpenAI-compatible)
 LLM_BASE_URL=                  # override base URL (per-provider default if empty; REQUIRED for custom)
 LLM_API_KEY=                   # override key; else provider env (OPENAI_API_KEY, ANTHROPIC_API_KEY, ...)
 LLM_MODEL=                     # override model (per-provider default if empty; REQUIRED for vllm/lmstudio/localai/custom)

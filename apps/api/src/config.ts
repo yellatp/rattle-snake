@@ -9,8 +9,8 @@ function int(value: string | undefined, fallback: number): number {
 }
 
 /**
- * Centralised env config. Loads .env from the API app root at runtime
- * (tsx loads it automatically; `node dist/index.js` relies on this loader).
+ * Centralised env config. Call loadEnv() (src/env.ts) at the entry point before
+ * this; it parses apps/api/.env and the repo-root .env via dotenv.
  */
 export function loadConfig() {
   const env = { ...process.env };
@@ -23,7 +23,10 @@ export function loadConfig() {
       // "kimi" | "grok" | "groq" | "qwen" | "openrouter" | "ollama" |
       // "vllm" | "lmstudio" | "localai" | "custom" | any unknown name
       // (unknown = generic OpenAI-compatible). See llm/presets.ts (FR-6).
-      provider: env.LLM_PROVIDER ?? "openai",
+      // Default "mock" = offline canned responses so the stack runs with zero
+      // config; cloud providers fail fast with an actionable message when a
+      // key is missing.
+      provider: env.LLM_PROVIDER ?? "mock",
       // Optional overrides; when unset, the provider preset supplies defaults
       // (base URL, model) and standard key env vars are consulted (FR-6.6).
       baseUrl: env.LLM_BASE_URL,

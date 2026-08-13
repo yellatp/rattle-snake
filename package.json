@@ -15,6 +15,7 @@
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "e2e": "pnpm --filter @rattlesnake/api e2e",
     "debate": "pnpm --filter @rattlesnake/api debate"
   },
   "devDependencies": {

@@ -19,7 +19,10 @@ import { createLLMClient } from "../src/llm/client.js";
 import { runDebate } from "../src/committee/debateEngine.js";
 import { extractBlueprint } from "../src/committee/blueprintExtractor.js";
 import { rewriteResume } from "../src/committee/resumeRewriter.js";
+import { loadEnv } from "../src/env.js";
 import { loadConfig } from "../src/config.js";
+
+loadEnv();
 
 function fail(message: string): never {
   console.error(`\n✖ ${message}\n`);

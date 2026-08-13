@@ -1,6 +1,9 @@
 import { serve } from "@hono/node-server";
+import { loadEnv } from "./env.js";
 import { loadConfig } from "./config.js";
 import { createApp } from "./app.js";
+
+loadEnv();
 
 const config = loadConfig();
 const { app, llm } = createApp();

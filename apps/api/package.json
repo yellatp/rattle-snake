@@ -10,6 +10,7 @@
     "start": "node dist/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
+    "e2e": "tsx cli/functional-test.ts",
     "debate": "tsx cli/debate.ts"
   },
   "dependencies": {
@@ -17,6 +18,7 @@
     "@hono/zod-validator": "^0.4.1",
     "@rattlesnake/shared": "workspace:*",
     "better-sqlite3": "^11.10.0",
+    "dotenv": "^17.4.2",
     "hono": "^4.6.14",
     "zod": "^3.24.1"
   },

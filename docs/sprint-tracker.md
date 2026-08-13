@@ -2,7 +2,7 @@
 
 > **Purpose:** chronological record of every sprint — when it started, when it completed, what was implemented, and what is still outstanding. Companion to `docs/strategy.md` (plan) and `docs/feature-tracker.md` (requirement-level status).
 > **Cadence:** continuous goal-based sprints (one active at a time, ~hourly/daily), per `docs/strategy.md` §1.
-> **Last updated:** 2026-08-12 18:30
+> **Last updated:** 2026-08-12 20:45
 
 ---
 
@@ -85,6 +85,16 @@
 - **Smoke test** — API boots with `LLM_PROVIDER=mock`, `/health` reports `{provider:"mock", model:"mock-response-1"}`.
 - **Docs synced** — `.env.example`, README (provider list + model section + env table + test count), `docs/architecture.md` §11 provider table + diagram + layout, `docs/feature-tracker.md` FR-6 section + NFR status refresh, `docs/strategy.md` Sprint 2 rescope.
 
+### Implemented (Part A2 — offline-first run + functional test suite)
+- **Root-cause fix: `.env` was never loaded** → local `pnpm dev:api` crashed at boot (`LLM_PROVIDER=openai: missing API key`) → `ERR_CONNECTION_REFUSED` on :8787. Added `dotenv` + `apps/api/src/env.ts` loader (parses `apps/api/.env`, then repo-root `.env`); wired into `src/index.ts`, `cli/debate.ts`, `cli/functional-test.ts`.
+- **Offline-first default** — `config.ts` defaults `LLM_PROVIDER` to `mock` (stack runs with zero config; fail-fast still fires when a cloud provider is set without a key). `.env.example` + `docker-compose.yml` aligned (`LLM_PROVIDER:-mock`; compose base URL now `http://ollama:11434/v1` for the `llm` profile).
+- **Functional test suite (no keys needed)** — `pnpm e2e`:
+  - `apps/api/cli/fake-llm.ts` — local HTTP servers speaking the OpenAI-compatible, Anthropic Messages, and Gemini `generateContent` wire formats, serving `mockResponseFor()` (extracted from `llm/mock.ts`).
+  - `apps/api/cli/functional-test.ts` — (1) full pipeline (debate → consensus → blueprint → rewrite) run through all three wire formats over **real HTTP** (24 requests/provider), asserting no neutral-verdict escapes, 20-entry transcript, parsable blueprint, markdown rewrite; (2) full HTTP API E2E on a live port with a slowed provider: create → poll → **live SSE** (entry + done events captured) → list → delete → /health.
+  - Wired as `@rattlesnake/api e2e` + root `pnpm e2e`.
+- **Local run verified** — API on http://localhost:8787 (`mock`/`mock-response-1`), web on http://localhost:4321 ("New Debate · Rattle-Snake V2"), live job via HTTP: `status=completed verdict=SHORTLISTED transcript=20 objections=10 strengths=10` + rewritten markdown resume.
+- **Gate green** — `pnpm test` (64), `pnpm run build` (3/3), `pnpm exec turbo run typecheck` (4/4), `pnpm e2e` ALL PASSED.
+
 ### Yet to implement / next actions (Part B + C)
 - **Await user-provided** `LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL`.
 - Run CLI + HTTP + web UI flow against the real provider; measure format adherence, redress retry count, blueprint parse rate, rewrite quality.
@@ -99,4 +109,4 @@
 |---|---|---|---|
 | Sprint 0 — Foundations | 2026-08-12 | 2026-08-12 | PRD + strategy + feature tracker + architecture + roadmap written |
 | Sprint 1 — Core Completion | 2026-08-12 | 2026-08-12 | 44 tests green, bug fixes, README, Docker files, prod-start verified, git initialized |
-| Sprint 2 — Multi-Provider LLM + Real-LLM Validation | 2026-08-12 18:30 | — | IN PROGRESS — Part A (FR-6 provider layer) implemented + 20 new tests (suite now 64); Part B awaits user LLM endpoint; Part C awaits Docker |
+| Sprint 2 — Multi-Provider LLM + Real-LLM Validation | 2026-08-12 18:30 | — | IN PROGRESS — Part A (FR-6 provider layer) implemented + 20 new tests (suite now 64); Part A2 offline-first run fixed + `pnpm e2e` functional suite (all 3 wire formats over real HTTP + API/SSE) PASSED; Part B awaits user LLM endpoint; Part C awaits Docker |

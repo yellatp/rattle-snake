@@ -1,7 +1,9 @@
 # Rattle-Snake V2 — self-hosted deployment (api + web, optional ollama).
 #
-#   docker compose up --build              # api + web
-#   docker compose --profile llm up --build # + local Ollama for LLM_*_URL=http://ollama:11434/v1
+# Offline-first: defaults to LLM_PROVIDER=mock (canned responses) so
+#   docker compose up --build            # api + web runs with zero config
+#   LLM_PROVIDER=ollama docker compose up --build   # local Ollama via llm profile
+#   LLM_PROVIDER=openai LLM_API_KEY=sk-... docker compose up --build
 #
 # Then open http://localhost:4321
 
@@ -17,9 +19,9 @@ services:
       - "8787:8787"
     environment:
       API_PORT: "8787"
-      LLM_PROVIDER: "${LLM_PROVIDER:-openai}"
-      LLM_BASE_URL: "${LLM_BASE_URL:-http://localhost:11434/v1}"
-      LLM_API_KEY: "${LLM_API_KEY:-ollama}"
+      LLM_PROVIDER: "${LLM_PROVIDER:-mock}"
+      LLM_BASE_URL: "${LLM_BASE_URL:-http://ollama:11434/v1}"
+      LLM_API_KEY: "${LLM_API_KEY:-}"
       LLM_MODEL: "${LLM_MODEL:-llama3.1}"
       LLM_TEMPERATURE: "${LLM_TEMPERATURE:-0.3}"
       DEBATE_CROSS_TALK_ROUNDS: "${DEBATE_CROSS_TALK_ROUNDS:-2}"

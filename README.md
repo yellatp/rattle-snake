@@ -27,18 +27,21 @@ Prerequisites: **Node ≥ 22**, **pnpm ≥ 10**.
 
 ```powershell
 pnpm install                    # first time (native deps auto-build)
-Copy-Item .env.example .env     # optional — defaults are sane
+Copy-Item .env.example .env     # optional — offline-first defaults are sane
 pnpm dev:api                    # API on http://localhost:8787
 pnpm dev:web                    # Astro on http://localhost:4321
 ```
 
 Open http://localhost:4321, click **Load sample** (or paste your own JD + resume), pick a domain, and start the committee debate.
 
-### No LLM handy? Use the offline mock
+### Offline by default — the mock is the fallback
+
+Out of the box (no `.env` at all) `LLM_PROVIDER` defaults to `mock`, so `pnpm dev:api` runs with zero configuration. Set any provider to take the real path:
 
 ```powershell
 # in .env set:
-LLM_PROVIDER=mock
+LLM_PROVIDER=anthropic
+LLM_API_KEY=sk-ant-...
 ```
 
 The mock returns correctly-formatted responses so the entire pipeline (debate, verdict, blueprint, rewrite) runs fully offline — great for demos, CI, and tests.
@@ -78,6 +81,7 @@ pnpm debate -- --jd samples/fintech-jd.md --resume samples/candidate-resume.md `
 pnpm test        # vitest: 64 tests (providers, non-neutrality, consensus math, blueprint, routes, domain detection)
 pnpm typecheck   # tsc + astro check (4/4)
 pnpm run build   # turbo build (3/3)
+pnpm e2e         # functional suite: all 3 provider wire formats over real HTTP + full API/SSE flow
 ```
 
 ## Docker (self-host)
@@ -129,7 +133,7 @@ See `.env.example` and [docs/architecture.md §10](docs/architecture.md).
 | Var | Default | Purpose |
 |---|---|---|
 | `API_PORT` | `8787` | API port |
-| `LLM_PROVIDER` | `openai` | provider name — `openai`, `anthropic`, `google`, `deepseek`, `kimi`, `grok`, `groq`, `qwen`, `openrouter`, `ollama`, `vllm`, `lmstudio`, `localai`, `custom`, `mock`; unknown name = OpenAI-compatible |
+| `LLM_PROVIDER` | `mock` | provider name — `openai`, `anthropic`, `google`, `deepseek`, `kimi`, `grok`, `groq`, `qwen`, `openrouter`, `ollama`, `vllm`, `lmstudio`, `localai`, `custom`, `mock`; unknown name = OpenAI-compatible |
 | `LLM_BASE_URL` | per-provider default | override base URL (required for `custom`) |
 | `LLM_API_KEY` | provider env var | override key; else falls back to `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` / `DEEPSEEK_API_KEY` / `MOONSHOT_API_KEY` / `XAI_API_KEY` / `GROQ_API_KEY` / `DASHSCOPE_API_KEY` / `OPENROUTER_API_KEY` |
 | `LLM_MODEL` | per-provider default | override model id (required when a preset has no default, e.g. `vllm`) |
