@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  gate:
+    name: Typecheck, test, e2e, smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared package
+        run: pnpm --filter @rattlesnake/shared build
+
+      - name: Typecheck API
+        working-directory: apps/api
+        run: npx tsc -p tsconfig.json --noEmit
+
+      - name: Test API
+        run: pnpm --filter @rattlesnake/api exec vitest run
+
+      - name: Typecheck Web
+        working-directory: apps/web
+        run: npx astro check
+
+      - name: Test Web
+        run: pnpm --filter @rattlesnake/web exec vitest run
+
+      - name: E2E functional tests
+        run: pnpm e2e
+
+      - name: Smoke routes
+        run: pnpm smoke:routes

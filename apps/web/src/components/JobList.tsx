@@ -15,7 +15,7 @@ export default function JobList() {
   if (error) return <div className="error-banner">Failed to load runs: {error}</div>;
   if (!jobs) return <p className="hint">Loading committee runs...</p>;
   if (jobs.length === 0) {
-    return <p className="hint">No committee runs yet. <a href="/">Start one →</a></p>;
+    return <p className="hint">No committee runs yet. <a href="/sme-panel">Start an evaluation</a>.</p>;
   }
 
   return (
@@ -34,7 +34,7 @@ export default function JobList() {
         <tbody>
           {jobs.map((job) => (
             <tr key={job.id}>
-              <td><a href={`/jobs/${job.id}`} className="mono">{job.id.slice(0, 12)}</a></td>
+              <td><a href={`/jobs/${job.id}`} className="mono">{job.id}</a></td>
               <td><span className="tag">{job.domain}</span></td>
               <td>
                 <span className={`tag status ${job.status}`}>{job.status}</span>
@@ -45,10 +45,10 @@ export default function JobList() {
                     {job.finalVerdict}
                   </span>
                 ) : (
-                  <span className="hint">—</span>
+                  <span className="hint">·</span>
                 )}
               </td>
-              <td>{job.transcript?.length ?? 0}</td>
+              <td>{job.transcriptLength ?? job.transcript?.length ?? 0}</td>
               <td className="hint">{new Date(job.createdAt).toLocaleString()}</td>
             </tr>
           ))}

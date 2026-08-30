@@ -40,7 +40,7 @@ const RESUME_JSON = JSON.stringify({
         title: "Senior Software Engineer",
         company: "RetailWorks",
         bullets: [
-          "Reduced API latency by 40% across 2M+ monthly orders using PostgreSQL query tuning and Redis caching.",
+          "Built REST APIs in TypeScript and Go with PostgreSQL query tuning and Redis caching, reducing API latency by 40% across 2M+ monthly orders.",
           "Migrated a monolith to event-driven microservices on Kafka.",
         ],
       },
@@ -71,11 +71,11 @@ const REJECTED_MODERATION = JSON.stringify({
 function jobFor(): JobState {
   return {
     id: "job-engine",
-    domain: "SWE",
+    domain: "SDE",
     jobDescription: JD,
     baseResume: BASE_RESUME,
     transcript: [],
-    status: "rewriting",
+    status: "completed",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -116,11 +116,13 @@ describe("generateSophisticatedResume", () => {
 
     const result = await generateSophisticatedResume(jobFor(), BLUEPRINT, llm);
 
-    expect(result.meta.role).toBe("swe");
-    expect(result.meta.roleLabel).toBe("Software Engineer");
+    expect(result.meta.role).toBe("backend_engineer");
+    expect(result.meta.roleLabel).toBe("Backend Engineer");
     expect(result.meta.iterations).toBe(1);
     expect(result.meta.moderationApproved).toBe(true);
     expect(result.meta.moderationScore).toBe(92);
+    expect(result.meta.moderator?.summaryVerdict).toBe("Score 92 — strong bullets aligned to the JD.");
+    expect(result.meta.moderator?.approved).toBe(true);
     expect(result.meta.atsScore).toBeGreaterThan(0);
     expect(result.meta.locale).toBe("us");
     expect(result.markdown.startsWith("# Rohan Mehta")).toBe(true);
@@ -143,10 +145,58 @@ describe("generateSophisticatedResume", () => {
     await generateSophisticatedResume(jobFor(), BLUEPRINT, llm);
 
     expect(probeCalls[0]).toContain("senior resume writer");
+    expect(probeCalls[0]).toContain("SHARED CORE RULES");
+    expect(probeCalls[0]).toContain("ANTI-BOT / ANTI-AI WORD BANS");
+    expect(probeCalls[0]).toContain("CONTROLLED ENHANCEMENT POLICY (tier: balanced)");
+    expect(probeCalls[0]).toContain("ENHANCEMENT AUDIT TRAIL");
     expect(probeCalls[0]).toContain("HIRING COMMITTEE FEEDBACK");
     expect(probeCalls[0]).toContain("GAP REPORT");
     expect(probeCalls[0]).toContain("monolith-to-Kafka migration evidence");
     expect(probeCalls[0]).toContain("quantify latency reduction");
+  });
+
+  it("injects the structured candidate profile into the generation prompt (WS-6)", async () => {
+    const userCalls: string[] = [];
+    const llm: LLMClient = {
+      provider: "stub",
+      model: "stub",
+      async complete(system, user) {
+        userCalls.push(user);
+        return isModerator(system) ? APPROVED_MODERATION : RESUME_JSON;
+      },
+    };
+    const profile = {
+      id: "prof_1",
+      name: "Rohan Mehta",
+      email: "rohan@example.com",
+      isMaster: true,
+      hasPin: false,
+      personalInfo: {
+        firstName: "Rohan",
+        lastName: "Mehta",
+        headline: "Backend engineer with 6 years of low-latency systems.",
+      },
+      experience: [
+        { title: "Senior Software Engineer", company: "RetailWorks", bullets: ["Built Kafka pipelines"] },
+      ],
+      skills: [{ name: "Languages", items: [{ name: "Go" }] }],
+      updatedAt: new Date().toISOString(),
+    };
+
+    const result = await generateSophisticatedResume(jobFor(), BLUEPRINT, llm, profile);
+
+    const userPrompt = userCalls[0]!;
+    expect(userPrompt).toContain("Candidate Profile (structured, authoritative");
+    expect(userPrompt).toContain("Headline: Backend engineer with 6 years of low-latency systems.");
+    expect(userPrompt).toContain("Built Kafka pipelines");
+    expect(userPrompt).toContain("Languages: Go");
+    const templateSection = userPrompt.slice(
+      userPrompt.indexOf("Template JSON"),
+      userPrompt.indexOf("Template JSON") + 800,
+    );
+    expect(templateSection).toContain("rohan@example.com");
+    expect(templateSection).toContain('"Go"');
+    expect(result.meta.role).toBe("backend_engineer");
   });
 
   it("regenerates once with moderator feedback when the first pass is rejected", async () => {

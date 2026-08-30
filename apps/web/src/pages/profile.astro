@@ -1,0 +1,10 @@
+---
+import Layout from "../layouts/Layout.astro";
+import ProfilesView from "../components/ProfilesView.tsx";
+---
+<Layout title="Profiles">
+  <header class="page-head">
+    <h1>Candidate Profiles</h1>
+  </header>
+  <ProfilesView client:load />
+</Layout>

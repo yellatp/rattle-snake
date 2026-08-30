@@ -1,0 +1,15 @@
+---
+import Layout from "../layouts/Layout.astro";
+import ResumeGenerator from "../components/ResumeGenerator.tsx";
+import ResumeHistory from "../components/ResumeHistory.tsx";
+
+const job = Astro.url.searchParams.get("job") ?? undefined;
+---
+<Layout title="Resume Generation">
+  <header class="page-head">
+    <h1>Resume Generation</h1>
+  </header>
+  <ResumeGenerator client:load initialJobId={job} />
+  <h2 class="section-title">Generated resumes</h2>
+  <ResumeHistory client:load />
+</Layout>

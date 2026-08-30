@@ -3,14 +3,85 @@ import Layout from "../../layouts/Layout.astro";
 import DebateView from "../../components/DebateView.tsx";
 
 const { id } = Astro.params;
+const apiUrl = import.meta.env.PUBLIC_API_URL ?? "http://localhost:8787";
 ---
+
 <Layout title={id ? `Run ${id.slice(0, 12)}` : "Committee Run"}>
-  {id ? (
-    <DebateView client:load jobId={id} />
-  ) : (
-    <section class="panel">
-      <h2>Run not found</h2>
-      <p class="hint"><a href="/jobs">Back to committee runs</a></p>
-    </section>
+  <div id="run-app" data-api-url={apiUrl}>
+    {id ? (
+      <DebateView client:load jobId={id} />
+    ) : (
+      <section class="panel">
+        <h2>Run not found</h2>
+        <p class="hint"><a href="/dashboard">Back to the dashboard</a></p>
+      </section>
+    )}
+  </div>
+  {id && (
+    <script is:inline>
+      (function () {
+        // Safety net: if the React island never hydrates (stale bundle, blocked
+        // module, or a crashed tab), the server-rendered spinner would stay
+        // frozen forever. Replace it with an actionable panel instead.
+        //
+        // Guarded against false positives: hydration gets a grace period, the
+        // check bails as soon as the island replaces its own loading element,
+        // and the failure panel only appears once the API is unreachable too.
+        var started = Date.now();
+        var interval = null;
+        var probed = false;
+        var host = document.getElementById("run-app");
+        var apiUrl = host && host.getAttribute("data-api-url")
+          ? host.getAttribute("data-api-url")
+          : "http://localhost:8787";
+        function clear() {
+          if (interval) {
+            window.clearInterval(interval);
+            interval = null;
+          }
+        }
+        function fail() {
+          clear();
+          var el = document.getElementById("run-loading");
+          if (!el) return;
+          var panel = document.createElement("div");
+          panel.className = "panel";
+          panel.innerHTML =
+            '<h2 class="panel-title">Could not load this run</h2>' +
+            '<p class="hint">The page did not connect to the app. Make sure the API server is running, then retry.</p>' +
+            '<div class="btn-row">' +
+            '<a class="btn" href="javascript:location.reload()">Retry</a>' +
+            '<a class="btn subtle" href="/dashboard">Back to dashboard</a>' +
+            "</div>";
+          el.replaceWith(panel);
+        }
+        function check() {
+          if (window.__debateViewReady) {
+            clear();
+            return;
+          }
+          var el = document.getElementById("run-loading");
+          if (!el) {
+            // The island replaced its loading element: hydration is working.
+            clear();
+            return;
+          }
+          if (Date.now() - started < 15000) return;
+          if (!probed) {
+            probed = true;
+            fetch(apiUrl + "/health")
+              .then(function (r) {
+                if (!r.ok) fail();
+              })
+              .catch(function () {
+                fail();
+              });
+            return;
+          }
+          if (Date.now() - started > 60000) fail();
+        }
+        interval = window.setInterval(check, 2000);
+      })();
+    </script>
   )}
 </Layout>

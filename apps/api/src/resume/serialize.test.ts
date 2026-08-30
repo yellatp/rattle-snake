@@ -51,13 +51,19 @@ describe("resumeToMarkdown", () => {
     expect(md).toContain("## Skills");
     expect(md).toContain("**Languages:** TypeScript, Go");
     expect(md).toContain("## Experience");
-    expect(md).toContain("### Senior Software Engineer — RetailWorks · 2021 – Present");
+    expect(md).toContain("### Senior Software Engineer | RetailWorks | 2021 – Present");
     expect(md).toContain("- Reduced API latency by 40%.");
-    expect(md).toContain("### Software Engineer — TravelBuddy · 2019 – 2021");
+    expect(md).toContain("### Software Engineer | TravelBuddy | 2019 – 2021");
     expect(md).toContain("## Education");
-    expect(md).toContain("- B.Tech Computer Science — NIT · 2014 – 2018");
+    expect(md).toContain("- B.Tech Computer Science | NIT | 2014 – 2018");
     expect(md).toContain("## Certifications");
     expect(md).toContain("- AWS Certified Solutions Architect");
+  });
+
+  it("never emits em-dashes or middle dots in the rendered markdown", () => {
+    const md = resumeToMarkdown(TEMPLATE);
+    expect(md.includes("\u2014")).toBe(false);
+    expect(md.includes("\u00b7")).toBe(false);
   });
 
   it("omits the name heading when the contact has no name", () => {
@@ -74,5 +80,44 @@ describe("resumeToMarkdown", () => {
       ats_keywords: [],
     };
     expect(resumeToMarkdown(empty)).toBe("");
+  });
+
+  it("renders without crashing when sections carry objects instead of strings", () => {
+    const malformed: ResumeTemplate = {
+      ...TEMPLATE,
+      sections: {
+        ...TEMPLATE.sections,
+        certifications: [
+          { name: "AWS Certified Solutions Architect" } as unknown as string,
+          "PMP",
+          null as unknown as string,
+        ],
+        coreCompetencies: [
+          { name: "Distributed Systems" } as unknown as string,
+          5 as unknown as string,
+        ],
+        skills: {
+          categories: [
+            { name: "Languages", items: ["TypeScript", { name: "Go" } as unknown as string] },
+          ],
+        },
+        experience: [
+          {
+            id: "e1",
+            title: { name: "Staff Engineer" } as unknown as string,
+            company: "Co",
+            bullets: [{ name: "Built the platform." } as unknown as string],
+          },
+        ],
+      },
+    };
+    expect(() => resumeToMarkdown(malformed)).not.toThrow();
+    const md = resumeToMarkdown(malformed);
+    expect(md).toContain("- AWS Certified Solutions Architect");
+    expect(md).toContain("- PMP");
+    expect(md).toContain("Distributed Systems");
+    expect(md).toContain("**Languages:** TypeScript, Go");
+    expect(md).toContain("### Staff Engineer | Co");
+    expect(md).toContain("- Built the platform.");
   });
 });

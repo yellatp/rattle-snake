@@ -74,6 +74,196 @@ describe("settings API", () => {
     expect(res.status).toBe(400);
   });
 
+  // --- Resume template catalog -------------------------------------------------
+
+  it("GET /api/resume/templates lists the full catalog", async () => {
+    const res = await ctx.app.request("/api/resume/templates");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { items: Array<{ slug: string; role: string; category: string; domains: string[] }> };
+    expect(body.items.length).toBe(42);
+    const swe = body.items.find((t) => t.slug === "swe");
+    expect(swe).toBeDefined();
+    expect(swe!.role).toBeTruthy();
+    expect(swe!.category).toBeTruthy();
+    expect(swe!.domains).toContain("SDE");
+    const pricing = body.items.find((t) => t.slug === "pricing_analyst");
+    expect(pricing!.domains).toContain("DATA_SCIENCE");
+  });
+
+  it("template catalog categories cover all 42 templates", async () => {
+    const res = await ctx.app.request("/api/resume/templates");
+    const body = (await res.json()) as { items: Array<{ slug: string; category: string }> };
+    for (const item of body.items) {
+      expect(item.category).toBeTruthy();
+    }
+  });
+
+  // --- Profiles (WS-6 multi-profile) -------------------------------------------
+
+  it("profiles CRUD: first becomes master, create/list/update", async () => {
+    const create = await ctx.app.request("/api/profiles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Jane Doe", email: "jane@example.com" }),
+    });
+    expect(create.status).toBe(201);
+    const first = (await create.json()) as { id: string; isMaster: boolean; name: string };
+    expect(first.isMaster).toBe(true);
+    expect(first.id).toBeTruthy();
+
+    const second = await ctx.app.request("/api/profiles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "John Roe", email: "john@example.com" }),
+    });
+    expect(second.status).toBe(201);
+    const secondBody = (await second.json()) as { id: string; isMaster: boolean };
+    expect(secondBody.isMaster).toBe(false);
+
+    const list = await ctx.app.request("/api/profiles");
+    expect(list.status).toBe(200);
+    const { items } = (await list.json()) as {
+      items: Array<{ id: string; name: string; isMaster: boolean }>;
+    };
+    expect(items).toHaveLength(2);
+    expect(items.find((p) => p.isMaster)?.name).toBe("Jane Doe");
+
+    const update = await ctx.app.request(`/api/profiles/${first.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        personalInfo: { firstName: "Jane", lastName: "Doe", headline: "Senior Data Engineer." },
+        summary: "Senior data engineer focused on pipeline architecture.",
+        skills: [{ name: "Tools", items: [{ name: "Spark" }] }],
+      }),
+    });
+    expect(update.status).toBe(200);
+    const updated = (await update.json()) as {
+      personalInfo: { firstName: string; headline: string };
+      summary: string;
+      skills: Array<{ name: string; items: Array<{ name: string }> }>;
+    };
+    expect(updated.personalInfo.firstName).toBe("Jane");
+    expect(updated.personalInfo.headline).toBe("Senior Data Engineer.");
+    expect(updated.summary).toBe("Senior data engineer focused on pipeline architecture.");
+    expect(updated.skills[0]?.items[0]?.name).toBe("Spark");
+  });
+
+  it("master can be reassigned without a PIN on an unlocked profile", async () => {
+    const create = await ctx.app.request("/api/profiles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "A" }),
+    });
+    const a = (await create.json()) as { id: string };
+    const createB = await ctx.app.request("/api/profiles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "B" }),
+    });
+    const b = (await createB.json()) as { id: string };
+
+    const promote = await ctx.app.request(`/api/profiles/${b.id}/master`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    expect(promote.status).toBe(200);
+    const promoted = (await promote.json()) as { isMaster: boolean; hasPin: boolean };
+    expect(promoted.isMaster).toBe(true);
+    expect(promoted.hasPin).toBe(false);
+
+    const list = await ctx.app.request("/api/profiles");
+    const { items } = (await list.json()) as { items: Array<{ id: string; isMaster: boolean }> };
+    expect(items.find((p) => p.id === b.id)?.isMaster).toBe(true);
+    expect(items.find((p) => p.id === a.id)?.isMaster).toBe(false);
+  });
+
+  it("master reassignment requires the PIN on a PIN-locked profile", async () => {
+    const create = await ctx.app.request("/api/profiles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Locked" }),
+    });
+    const locked = (await create.json()) as { id: string };
+    await ctx.app.request(`/api/profiles/${locked.id}/pin`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pin: "1234" }),
+    });
+
+    const createB = await ctx.app.request("/api/profiles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Unlocked" }),
+    });
+    const b = (await createB.json()) as { id: string };
+
+    const noPin = await ctx.app.request(`/api/profiles/${locked.id}/master`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    expect(noPin.status).toBe(403);
+
+    const wrongPin = await ctx.app.request(`/api/profiles/${locked.id}/master`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pin: "9999" }),
+    });
+    expect(wrongPin.status).toBe(403);
+
+    const rightPin = await ctx.app.request(`/api/profiles/${locked.id}/master`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pin: "1234" }),
+    });
+    expect(rightPin.status).toBe(200);
+    const promoted = (await rightPin.json()) as { isMaster: boolean; hasPin: boolean };
+    expect(promoted.isMaster).toBe(true);
+    expect(promoted.hasPin).toBe(true);
+
+    const list = await ctx.app.request("/api/profiles");
+    const { items } = (await list.json()) as { items: Array<{ id: string; isMaster: boolean }> };
+    expect(items.find((p) => p.id === locked.id)?.isMaster).toBe(true);
+    expect(items.find((p) => p.id === b.id)?.isMaster).toBe(false);
+  });
+
+  it("cannot delete the last profile", async () => {
+    const create = await ctx.app.request("/api/profiles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Solo" }),
+    });
+    const solo = (await create.json()) as { id: string };
+    const del = await ctx.app.request(`/api/profiles/${solo.id}`, { method: "DELETE" });
+    expect(del.status).toBe(400);
+  });
+
+  it("deleting the master promotes the oldest remaining profile", async () => {
+    const create = await ctx.app.request("/api/profiles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Master" }),
+    });
+    const master = (await create.json()) as { id: string };
+    const createB = await ctx.app.request("/api/profiles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Second" }),
+    });
+    const second = (await createB.json()) as { id: string };
+
+    const del = await ctx.app.request(`/api/profiles/${master.id}`, { method: "DELETE" });
+    expect(del.status).toBe(204);
+
+    const list = await ctx.app.request("/api/profiles");
+    const { items } = (await list.json()) as { items: Array<{ id: string; isMaster: boolean }> };
+    expect(items).toHaveLength(1);
+    expect(items[0]?.id).toBe(second.id);
+    expect(items[0]?.isMaster).toBe(true);
+  });
+
   // --- Saved resumes -------------------------------------------------------------
 
   it("resumes CRUD: create, list, update, delete", async () => {
@@ -236,7 +426,7 @@ describe("settings API", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        domain: "SWE",
+        domain: "SDE",
         jobDescription: JD,
         baseResume: RESUME,
         llm: { provider: "mock" },
@@ -251,7 +441,7 @@ describe("settings API", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        domain: "SWE",
+        domain: "SDE",
         jobDescription: JD,
         baseResume: RESUME,
         llmConnectionId: "llm_nope",
@@ -271,7 +461,7 @@ describe("settings API", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        domain: "SWE",
+        domain: "SDE",
         jobDescription: JD,
         baseResume: RESUME,
         llmConnectionId: conn.id,

@@ -5,33 +5,50 @@ import type { ResumeTemplate } from "./types.js";
  * Heading levels follow the `.resume-md` styles in the web app
  * (h1 name, h2 section, h3 role/company).
  */
+
+/**
+ * Coerce one template value to a trimmed string. Model output (and older stored
+ * rows) sometimes carries objects where the schema expects strings — e.g.
+ * `certifications: [{ "name": "AWS" }]` — so a nested string is unwrapped and
+ * anything unusable collapses to "". This keeps rendering crash-free.
+ */
+function str(value: unknown): string {
+  if (typeof value === "string") return value.trim();
+  if (value && typeof value === "object") {
+    const name = (value as { name?: unknown }).name ?? (value as { title?: unknown }).title;
+    if (typeof name === "string") return name.trim();
+  }
+  return "";
+}
+
+/** Coerce an array of template values to trimmed strings, dropping empties. */
+function strList(values: unknown[] | undefined): string[] {
+  return (values ?? []).map(str).filter(Boolean);
+}
+
 export function resumeToMarkdown(template: ResumeTemplate): string {
   const lines: string[] = [];
 
   const contact = template.contact ?? {};
-  if (contact.name) {
-    lines.push(`# ${contact.name}`);
-    const contactRow = [
-      contact.location,
-      contact.phone,
-      contact.email,
-      contact.linkedin,
-      contact.github,
-      contact.portfolio,
-    ]
-      .filter((v): v is string => Boolean(v && v.trim()))
-      .join(" · ");
+  const name = str(contact.name);
+  if (name) {
+    lines.push(`# ${name}`);
+    const contactRow = [contact.location, contact.phone, contact.email, contact.linkedin, contact.github, contact.portfolio]
+      .filter((v): v is string => typeof v === "string" && v.trim().length > 0)
+      .map((v) => v.trim())
+      .join(" | ");
     if (contactRow) lines.push(contactRow);
     lines.push("");
   }
 
   const sections = template.sections ?? {};
 
-  if (sections.summary?.content?.trim()) {
-    lines.push("## Summary", "", sections.summary.content.trim(), "");
+  const summary = str(sections.summary?.content);
+  if (summary) {
+    lines.push("## Summary", "", summary, "");
   }
 
-  const coreCompetencies = sections.coreCompetencies ?? [];
+  const coreCompetencies = strList(sections.coreCompetencies);
   if (coreCompetencies.length > 0) {
     lines.push("## Core Competencies", "", `* ${coreCompetencies.join(", ")}`, "");
   }
@@ -40,8 +57,9 @@ export function resumeToMarkdown(template: ResumeTemplate): string {
   if (skills.length > 0) {
     lines.push("## Skills", "");
     for (const cat of skills) {
-      const items = (cat.items ?? []).join(", ");
-      if (cat.name?.trim()) lines.push(`**${cat.name.trim()}:** ${items}`);
+      const items = strList(cat.items).join(", ");
+      const catName = str(cat.name);
+      if (catName) lines.push(`**${catName}:** ${items}`);
       else if (items) lines.push(items);
     }
     lines.push("");
@@ -51,13 +69,14 @@ export function resumeToMarkdown(template: ResumeTemplate): string {
   if (experience.length > 0) {
     lines.push("## Experience", "");
     for (const exp of experience) {
-      const title = exp.title?.trim();
-      const company = exp.company?.trim();
-      const heading = title && company ? `${title} — ${company}` : (title ?? company ?? "Experience");
-      const suffix = exp.dates?.trim() ? ` · ${exp.dates.trim()}` : "";
+      const title = str(exp.title);
+      const company = str(exp.company);
+      const heading = title && company ? `${title} | ${company}` : (title ?? company ?? "Experience");
+      const dates = str(exp.dates);
+      const suffix = dates ? ` | ${dates}` : "";
       lines.push(`### ${heading}${suffix}`);
-      for (const bullet of exp.bullets ?? []) {
-        if (bullet?.trim()) lines.push(`- ${bullet.trim()}`);
+      for (const bullet of strList(exp.bullets)) {
+        lines.push(`- ${bullet}`);
       }
       lines.push("");
     }
@@ -67,19 +86,20 @@ export function resumeToMarkdown(template: ResumeTemplate): string {
   if (education.length > 0) {
     lines.push("## Education", "");
     for (const ed of education) {
-      const parts = [ed.degree?.trim(), ed.institution?.trim()].filter(Boolean).join(" — ");
+      const parts = [str(ed.degree), str(ed.institution)].filter(Boolean).join(" | ");
       if (!parts) continue;
-      const suffix = ed.dates?.trim() ? ` · ${ed.dates.trim()}` : "";
+      const dates = str(ed.dates);
+      const suffix = dates ? ` | ${dates}` : "";
       lines.push(`- ${parts}${suffix}`);
     }
     lines.push("");
   }
 
-  const certifications = sections.certifications ?? [];
+  const certifications = strList(sections.certifications);
   if (certifications.length > 0) {
     lines.push("## Certifications", "");
     for (const cert of certifications) {
-      if (cert?.trim()) lines.push(`- ${cert.trim()}`);
+      lines.push(`- ${cert}`);
     }
     lines.push("");
   }

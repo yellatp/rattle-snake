@@ -1,8 +1,8 @@
-# Rattle-Snake V2 — Sprint Tracker (Agile)
+﻿# Rattle-Snake V2 — Sprint Tracker (Agile)
 
 > **Purpose:** chronological record of every sprint — when it started, when it completed, what was implemented, and what is still outstanding. Companion to `docs/strategy.md` (plan) and `docs/feature-tracker.md` (requirement-level status).
 > **Cadence:** continuous goal-based sprints (one active at a time, ~hourly/daily), per `docs/strategy.md` §1.
-> **Last updated:** 2026-08-13 05:30
+> **Last updated:** 2026-08-13 (Applications / Outreach round complete — WS-10/11/12)
 
 ---
 
@@ -136,6 +136,81 @@
 
 ---
 
+## Next-Round (docs/plan-next-round.md) — P1…P5 (COMPLETE)
+
+| Field | Value |
+|---|---|
+| **Started** | 2026-08-12 (late) |
+| **Completed** | 2026-08-13 |
+| **Goal** | Respond to the real-DeepSeek-run review: quality (resume rewrite, typography hygiene, bolded debate highlights), breadth (role-driven committees, advisory board, V1 parity), and documentation. Gate kept green every phase: `pnpm test` + typecheck + build + `pnpm e2e` (+ `pnpm smoke:routes`). |
+| **Suite** | 64 → **201 unit tests** (25 shared · 166 api · 10 web); typecheck 3/3, build 3/3, `pnpm e2e` ALL PASSED, `pnpm smoke:routes` ALL ROUTES PASSED |
+
+### Implemented (per phase)
+- **P1 — quality (WS-1/2/3/9):**
+  - Resume rewrite: `resume/merge.ts` pre-merges the source into the role template (placeholders force a rewrite), divergence directive in the engine, `[ADD: ...]` for missing evidence.
+  - Typography hygiene: `resume/sanitize.ts` (em-dash/smart-quote/emoji), strict punctuation in every role prompt, moderator §7 typography check, transcripts sanitized — resumes *and* debates stay ASCII-clean.
+  - Debate bolding: `**…**` on positives/negatives rendered by a mini-markdown renderer in `DebateView`.
+  - Recruiter-standard audit (WS-9): WHAT/HOW/WHY/WHERE qualification grading, per-role `screening.ts` checklists ("FLOOR, not ceiling"), divergence upgrades, ATS badge relabelled "keyword overlap".
+- **P2 — role-driven committees + advisory (WS-4/5):**
+  - `roleCommittees.ts` maps all 32 role slugs to 5-seat committees; sector registry composes the Sector Specialist persona per job; `roleSlug` persisted on jobs with detection at creation; role picker + `?role=`/`?domain=` deep-links.
+  - Advisory Mentorship Board: pre-debate mentor panel, `advisoryExtractor.ts` (LLM-first + rule-based fallback), `MENTORSHIP BOARD BRIEF` fed to every agent, advisory injected into the resume user prompt, SSE `advisory` event, `/advisory` page.
+- **P3 — sidebar navigation (WS-7):** persistent sidebar with Home · Dashboard · Advisory · Debate · Resume · Profile · Settings; `/jobs` redirects to `/dashboard`; route smoke green.
+- **P4 — V1 parity (WS-6):**
+  - Template library: `ResumeTemplateInfo`, `TEMPLATE_CATEGORIES` + `listTemplateInfo()` (32 templates / 7 categories), `GET /api/resume/templates`, `/resume` page `TemplateLibrary`, NewJobForm picker.
+  - Downloads: `apps/web/src/lib/export/` (`types`/`normalize`/`to-plaintext`/`to-docx`/`to-pdf`/`paths`), lazy-loaded via dynamic imports (DebateView client chunk 55.76 kB), ExportBar on the job page: format `modern|classic|plain` × preset `standard|minimalist|compact` × page `letter|a4` → PDF/DOCX/TXT. Web vitest suite added (10 tests).
+  - Multi-profile: structured `UserProfile` (personalInfo, experience, education, skills, projects, certifications, languages, workAuthorization, totalWorkExperience…), `profiles` table with automatic legacy-profile migration, master semantics + scrypt PIN, `/api/profiles` CRUD + master + pin endpoints, `jobs.profile_id` (+ master fallback on creation), `applyProfileToTemplate`/`buildProfileBio`, engine profile injection, `/profile` page `ProfilesView`, NewJobForm candidate picker.
+- **P5 — docs (WS-8):** new `docs/how-it-works.md`; refreshed `README.md`, `docs/architecture.md`, `docs/feature-tracker.md` (WS table), and this tracker.
+
+### Notable fixes along the way
+- Dropped `async`/added missing handler in `NewJobForm.handleSubmit`; export lib type fixes (`string[]` body union, `Object.values` narrowing); DOCX em dash removed from the renderer (output hygiene); test assertion corrected where profile headlines legitimately do not override a real source summary.
+
+### Still open
+- Real-LLM validation (format adherence, redress retries, blueprint parse rate, rewrite quality) via BYOK / Settings / env.
+- Docker image build verification; Playwright UI e2e; auth (roadmap).
+
+---
+
+## Applications / Outreach round (WS-10 · WS-11 · WS-12) (COMPLETE)
+
+| Field | Value |
+|---|---|
+| **Started** | 2026-08-13 |
+| **Completed** | 2026-08-13 |
+| **Goal** | Move from "tool that rewrites resumes" to "application pipeline": (A) a periodic-table applications board on the homepage; (B) per-application cold-email killer intro (recruiter / founder / hiring manager); (C) per-application 5-expert interview mock planned by the same committee that debated the resume. |
+| **Suite** | 201 → **213 unit tests** (25 shared · 178 api · 10 web); typecheck 3/3, build 3/3, `pnpm e2e` ALL PASSED, `pnpm smoke:routes` ALL ROUTES PASSED |
+
+### Implemented (per workstream)
+- **WS-10 — Applications board:**
+  - `apps/web/src/components/ApplicationsBoard.tsx` — fetches `listJobs` + `listProfiles` + `listTemplates`; groups runs per candidate profile (atomic number = run index descending, symbol = role-label initials, color = shortlisted/rejected/completed/live/failed), profile filter chips, legend, empty state linking to `/debate`; clicking an element opens `/jobs/:id`.
+  - `apps/web/src/pages/index.astro` rewritten as a compact hero + CTA + `<ApplicationsBoard client:load />`; board/panel CSS appended to `global.css`.
+- **WS-11 — Cold-email killer intro:**
+  - Shared `ColdEmailDraft` + `ColdEmailAudience` types + `coldEmailSchema`/`coldEmailAudienceSchema`.
+  - `apps/api/src/outreach/coldEmail.ts` — `buildColdEmailPrompt` (role template + JD + confirmed strengths + recipient), `generateColdEmail` (LLM JSON → Zod → `buildFallback`), `guessCandidateName`, `metricBullets`; ASCII-hygiene via the shared typography rule.
+  - `POST /api/jobs/:id/cold-email` (`audience?`, `targetName?`, `tone?`, `llm?`, `llmConnectionId?`) — BYOK xor stored connection, else server config; mock marker `cold outreach writer`.
+  - `apps/web/src/components/ColdEmailPanel.tsx` — audience, recipient name, tone, Generate / Copy / Regenerate; mounted in `DebateView.tsx` below the resume.
+- **WS-12 — 5-expert interview mock:**
+  - Shared `InterviewPhase` / `InterviewExpertDrill` / `InterviewPrepPlan` types + Zod schemas.
+  - `apps/api/src/interview/mock.ts` — `buildInterviewMockPrompt`, `generateInterviewMock` (LLM JSON → Zod → `buildRulesBased`), dispatch on committee seat `tone` (recruiter / architect / lead / manager / default), `sanitizePlan`.
+  - `POST /api/jobs/:id/interview-mock`; mock marker `interview coach`.
+  - `apps/web/src/components/InterviewMockPanel.tsx` — pipeline list, per-expert `<details>` cards (expectations / drill questions / red flags), topic tags, prep tips; mounted in `DebateView.tsx`.
+- **Shared wiring** — `resolveLlmClient(body)` helper in `routes/jobs.ts` (now used by `POST /api/jobs` + both new endpoints); shared `LlmPicker.tsx` BYOK selector (stored connection or inline override, mutually exclusive).
+- **Docs (WS-8 refresh)** — README (What it does items 10–12, API rows, repo layout, 213-test count), `docs/architecture.md` (diagram, layout, domain types, API surface, frontend behavior, §12), `docs/how-it-works.md` (10-second summary 7–8, §6 bullets, API table, repo layout, test count), `docs/feature-tracker.md` (WS-10/11/12 rows), this tracker.
+
+### Notable fixes along the way
+- `buildColdEmailPrompt` originally included the resume-writer `getRolePrompt` (noise) instead of the JD — tests caught it; it now includes `## JOB DESCRIPTION` + `## ROLE & STRENGTHS` + `## CANDIDATE` + `## RECIPIENT` + output format.
+- Shared `validation.ts` type/`ZodType` name collisions (`ColdEmailDraft`, `InterviewPrepPlan`) resolved by keeping the types in `types.ts` and only the schemas in `validation.ts`.
+
+### Tests added
+- `apps/api/src/outreach/coldEmail.test.ts` (4) — draft subject/body from mock, rule-based fallback, name guessing, metric bullet extraction.
+- `apps/api/src/interview/mock.test.ts` (3) — full 5-expert plan from mock, rules-based fallback, tone dispatch.
+- `apps/api/src/routes/jobs.test.ts` (+6) — cold-email draft sanitized, cold-email 404, conflicting BYOK 400, interview-mock full plan, interview-mock 404, plus pre-existing BYOK coverage.
+
+### Still open
+- Real-LLM validation (format adherence, redress retries, blueprint parse rate, rewrite quality) via BYOK / Settings / env.
+- Docker image build verification; Playwright UI e2e; auth (roadmap).
+
+---
+
 ## Completed-sprint rollup
 
 | Sprint | Started | Completed | Core outcome |
@@ -143,3 +218,6 @@
 | Sprint 0 — Foundations | 2026-08-12 | 2026-08-12 | PRD + strategy + feature tracker + architecture + roadmap written |
 | Sprint 1 — Core Completion | 2026-08-12 | 2026-08-12 | 44 tests green, bug fixes, README, Docker files, prod-start verified, git initialized |
 | Sprint 2 — Multi-Provider LLM + Real-LLM Validation | 2026-08-12 18:30 | — | IN PROGRESS — Part A (FR-6 provider layer) implemented + 20 new tests; Part A2 offline-first run fixed + `pnpm e2e` functional suite PASSED; Part A3 mock persona fix (`b360fe6`) + BYOK per-run LLM overrides from the UI/API (suite now 68); Part A4 profile management + `/settings` page + saved resumes/JDs + encrypted stored LLM connections (`llmConnectionId`, suite now 82); Part A5 sophisticated role-targeted resume engine ported from V1 (32 role prompts/templates, ATS scorer, moderator loop, JD title/keyword role detection, editable JSON tab + meta badge, suite now 112); Part A5.1 US/UK English variant from job location (suite now 124); Part B real-LLM validation doable via BYOK, Settings, or env — awaits a real endpoint; Part C awaits Docker |
+| Next-Round P1–P5 (WS-1…WS-9, per `docs/plan-next-round.md`) | 2026-08-12 late | 2026-08-13 | Review-driven quality + breadth: source-merged resume rewrite, typography/emoji hygiene, bolded debate highlights, WS-9 qualification audit, role-driven committees, advisory board, sidebar nav, V1 parity (template library · multi-profile + PIN · PDF/DOCX/TXT downloads), docs. Suite 64 → 201 tests; gate green each phase (test/typecheck/build/e2e/smoke) |
+| Applications / Outreach round (WS-10–12) | 2026-08-13 | 2026-08-13 | Applications board homepage (periodic table), per-application cold-email killer intro (recruiter/founder/hiring manager), 5-expert interview mock from the same committee, BYOK xor stored-connection on both endpoints, `LlmPicker`. Suite 201 → 213 tests; gate green (test/typecheck/build/e2e/smoke) |
+| Restructure round (WS-13) | 2026-08-13 | 2026-08-13 | Remove advisory + applications board; JD metadata extraction selects the committee; every seat's opening is a structured 360-degree scored analysis (live SME panel UI); resume generation becomes an explicit on-demand handoff (`POST /api/jobs/:id/resume/generate` + Resume page generator); sidebar = Dashboard · SME Panel · Resume Generation · Profile · Settings with legacy redirects (`/` → `/dashboard`, `/debate` → `/sme-panel`). Suite stays 213 tests; gate green (test 213 / typecheck / build / e2e incl. no-auto-resume + generate-on-demand assertions / smoke:routes all 200/302) || Systems-upgrade + hardening round (WS-14-16) | 2026-08-13 late | 2026-08-29 | Queue + worker execution (memory/Redis, at-least-once ack, crash recovery), event bus abstraction (replay buffer + Redis fan-out), outbound webhooks (HMAC, retries, SSRF guard, encrypted secrets), audit log, security middleware chain (CORS-first, API-key auth with secure prod default, rate limit), tenant scoping on every table incl. exports/storage, LLM timeouts/retries + visible fallbacks, verdict word-boundary fix, concurrent-edit protection, XSS sanitizer, lean dashboard projection, health probe with DB check + liveness bypass, 7-profile cap, SQLite indexes/transactions/schema version, CI workflow. Suite 246 api + 23 web; gate green (test/typecheck/build/e2e/smoke) |

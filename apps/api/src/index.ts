@@ -6,7 +6,7 @@ import { createApp } from "./app.js";
 loadEnv();
 
 const config = loadConfig();
-const { app, llm } = createApp();
+const { app, llm, worker, queue, store } = createApp();
 
 const server = serve(
   { fetch: app.fetch, port: config.port },
@@ -16,9 +16,23 @@ const server = serve(
   },
 );
 
-function shutdown() {
+async function shutdown() {
   console.log("\n[rattle-snake-v2] shutting down...");
   server.close();
+  await Promise.race([
+    worker.stop(30_000),
+    new Promise((resolve) => setTimeout(resolve, 32_000)),
+  ]);
+  try {
+    await queue.close();
+  } catch (err) {
+    console.error("[rattle-snake-v2] queue close failed:", err);
+  }
+  try {
+    store.close();
+  } catch (err) {
+    console.error("[rattle-snake-v2] store close failed:", err);
+  }
   process.exit(0);
 }
 

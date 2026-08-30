@@ -1,3 +1,4 @@
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -8,27 +9,44 @@ function int(value: string | undefined, fallback: number): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-/**
- * Centralised env config. Call loadEnv() (src/env.ts) at the entry point before
- * this; it parses apps/api/.env and the repo-root .env via dotenv.
- */
+function loadApiKeys(env: NodeJS.ProcessEnv): Map<string, { tenantId: string; keyId: string }> {
+  const keys = new Map<string, { tenantId: string; keyId: string }>();
+  let raw = "";
+  if (env.API_KEYS_FILE && existsSync(env.API_KEYS_FILE)) {
+    raw = readFileSync(env.API_KEYS_FILE, "utf8").trim();
+  } else if (env.API_KEYS) {
+    raw = env.API_KEYS.trim();
+  }
+  if (!raw) return keys;
+  try {
+    const parsed = JSON.parse(raw) as Record<string, { tenantId: string; keyId: string }>;
+    for (const [key, meta] of Object.entries(parsed)) {
+      if (typeof meta?.tenantId === "string" && typeof meta?.keyId === "string") {
+        keys.set(key, { tenantId: meta.tenantId, keyId: meta.keyId });
+      }
+    }
+  } catch {
+    // Invalid API key JSON is ignored so the server can still start in single-tenant mode.
+  }
+  return keys;
+}
+
 export function loadConfig() {
   const env = { ...process.env };
+  // Secure-by-default for SaaS deployments: API keys are required in production
+  // unless REQUIRE_API_KEY explicitly opts out. Dev/test stay frictionless.
+  const requireApiKeyEnv = env.REQUIRE_API_KEY?.toLowerCase();
+  const requireApiKey =
+    requireApiKeyEnv !== undefined
+      ? requireApiKeyEnv === "true" || requireApiKeyEnv === "1"
+      : env.NODE_ENV === "production";
 
   return {
     port: int(env.API_PORT, 8787),
     databasePath: env.DATABASE_PATH ?? path.join(__dirname, "..", "data", "rattle-snake.db"),
+    exportsDir: env.EXPORTS_DIR ?? path.join(__dirname, "..", "data", "exports"),
     llm: {
-      // Provider name: "openai" | "anthropic" | "google" | "deepseek" |
-      // "kimi" | "grok" | "groq" | "qwen" | "openrouter" | "ollama" |
-      // "vllm" | "lmstudio" | "localai" | "custom" | any unknown name
-      // (unknown = generic OpenAI-compatible). See llm/presets.ts (FR-6).
-      // Default "mock" = offline canned responses so the stack runs with zero
-      // config; cloud providers fail fast with an actionable message when a
-      // key is missing.
       provider: env.LLM_PROVIDER ?? "mock",
-      // Optional overrides; when unset, the provider preset supplies defaults
-      // (base URL, model) and standard key env vars are consulted (FR-6.6).
       baseUrl: env.LLM_BASE_URL,
       apiKey: env.LLM_API_KEY,
       model: env.LLM_MODEL,
@@ -42,6 +60,27 @@ export function loadConfig() {
       .split(",")
       .map((o) => o.trim())
       .filter(Boolean),
+    security: {
+      maxBodySizeBytes: int(env.MAX_BODY_SIZE_BYTES, 256 * 1024),
+      rateLimitRequests: int(env.RATE_LIMIT_REQUESTS, env.NODE_ENV === "production" ? 60 : 0),
+      rateLimitWindowMs: int(env.RATE_LIMIT_WINDOW_MS, 60_000),
+      requireApiKey,
+      apiKeys: loadApiKeys(env),
+      trustProxy: env.TRUST_PROXY === "true" || env.TRUST_PROXY === "1",
+    },
+    redis: {
+      url: env.REDIS_URL,
+      enabled: Boolean(env.REDIS_URL),
+    },
+    queue: {
+      // "memory" or "redis". Redis is used when REDIS_URL is set and QUEUE_DRIVER=redis.
+      driver: env.QUEUE_DRIVER ?? (env.REDIS_URL ? "redis" : "memory"),
+      concurrency: int(env.QUEUE_CONCURRENCY, 4),
+    },
+    audit: {
+      level: env.AUDIT_LOG_LEVEL ?? (env.NODE_ENV === "production" ? "info" : "debug"),
+      pretty: env.AUDIT_PRETTY !== "false" && env.NODE_ENV !== "production",
+    },
   };
 }
 

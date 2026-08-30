@@ -30,7 +30,7 @@ function fail(message: string): never {
   process.exit(1);
 }
 
-const usage = `Usage: pnpm debate -- --jd <file> --resume <file> [--domain SWE|DATA_AI|FINANCE] [--mock] [--out <file>]`;
+const usage = `Usage: pnpm debate -- --jd <file> --resume <file> [--domain AI_ENGINEERING|ML_ENGINEERING|SDE|DATA_ENGINEERING|DATA_SCIENCE|CYBERSECURITY|NETWORKING|DEVOPS|PROJECT_MANAGEMENT] [--mock] [--out <file>]`;
 
 const { values } = parseArgs({
   options: {
@@ -44,8 +44,21 @@ const { values } = parseArgs({
 
 if (!values.jd || !values.resume) fail("--jd and --resume are required");
 
-const domain = (values.domain ?? "SWE") as JobState["domain"];
-if (!["SWE", "DATA_AI", "FINANCE"].includes(domain)) fail(`Unknown domain: ${domain}`);
+const domain = (values.domain ?? "SDE") as JobState["domain"];
+const VALID_DOMAINS = [
+  "AI_ENGINEERING",
+  "ML_ENGINEERING",
+  "SDE",
+  "DATA_ENGINEERING",
+  "DATA_SCIENCE",
+  "CYBERSECURITY",
+  "NETWORKING",
+  "DEVOPS",
+  "PROJECT_MANAGEMENT",
+] as const;
+if (!VALID_DOMAINS.includes(domain as (typeof VALID_DOMAINS)[number])) {
+  fail(`Unknown domain: ${domain}`);
+}
 
 const config = loadConfig();
 if (values.mock) config.llm.provider = "mock";

@@ -85,11 +85,36 @@ export default function SettingsView() {
   }
 
   if (loading) {
-    return <p className="hint">Loading settings…</p>;
+    return <p className="hint">Loading settings...</p>;
   }
 
   return (
     <div className="settings-grid">
+      <h2 className="section-title">General Settings</h2>
+
+      <SavedItems
+        label="Saved job descriptions"
+        addLabel="Add job description"
+        items={jds}
+        minChars={80}
+        placeholder="Paste the full job description..."
+        onSave={(id, title, content) =>
+          id ? updateJd(id, { title, content }) : createJd({ title, content })
+        }
+        onChanged={refresh}
+        onDelete={deleteJd}
+      />
+
+      <h2 className="section-title">LLM API</h2>
+
+      <ConnectionList
+        connections={connections}
+        onChanged={refresh}
+        onDelete={deleteConnection}
+      />
+
+      <h2 className="section-title">Resume</h2>
+
       <section className="panel settings-section">
         <h2>Profile</h2>
         <form className="editor-form" onSubmit={handleSaveProfile}>
@@ -117,7 +142,7 @@ export default function SettingsView() {
           </div>
           <div className="form-actions">
             <button type="submit" className="btn" disabled={savingProfile}>
-              {savingProfile ? "Saving…" : "Save profile"}
+              {savingProfile ? "Saving..." : "Save profile"}
             </button>
             {profileUpdatedAt && (
               <span className="hint">
@@ -133,29 +158,25 @@ export default function SettingsView() {
         addLabel="Add resume"
         items={resumes}
         minChars={50}
-        placeholder="Paste the full resume (text or markdown)…"
+        placeholder="Paste the full resume (text or markdown)..."
         onSave={(id, title, content) =>
           id ? updateResume(id, { title, content }) : createResume({ title, content })
         }
+        onChanged={refresh}
         onDelete={deleteResume}
       />
 
-      <SavedItems
-        label="Saved job descriptions"
-        addLabel="Add job description"
-        items={jds}
-        minChars={80}
-        placeholder="Paste the full job description…"
-        onSave={(id, title, content) =>
-          id ? updateJd(id, { title, content }) : createJd({ title, content })
-        }
-        onDelete={deleteJd}
-      />
+      <h2 className="section-title">Cover Letter</h2>
 
-      <ConnectionList
-        connections={connections}
-        onDelete={deleteConnection}
-      />
+      <section className="panel settings-section">
+        <p className="empty-note">No cover letter settings yet.</p>
+      </section>
+
+      <h2 className="section-title">Cold Reach</h2>
+
+      <section className="panel settings-section">
+        <p className="empty-note">No cold reach settings yet.</p>
+      </section>
 
       {error && <div className="error-banner">{error}</div>}
       {notice && (
@@ -174,6 +195,7 @@ interface SavedItemsProps {
   minChars: number;
   placeholder: string;
   onSave: (id: string | null, title: string, content: string) => Promise<unknown>;
+  onChanged: () => Promise<void> | void;
   onDelete: (id: string) => Promise<void>;
 }
 
@@ -210,18 +232,30 @@ function SavedItems(props: SavedItemsProps) {
     }
     if (content.trim().length < props.minChars) {
       setError(
-        `Content is too short — at least ${props.minChars} characters.`,
+        `Content is too short, at least ${props.minChars} characters.`,
       );
       return;
     }
     setSaving(true);
     try {
       await props.onSave(editingId, title.trim(), content);
+      await props.onChanged();
       cancel();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDelete(item: { id: string; title: string }) {
+    if (!window.confirm(`Delete "${item.title}"? This cannot be undone.`)) return;
+    setError(null);
+    try {
+      await props.onDelete(item.id);
+      await props.onChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
     }
   }
 
@@ -247,7 +281,7 @@ function SavedItems(props: SavedItemsProps) {
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Rohan Mehta — Backend (2026)"
+              placeholder="e.g. Rohan Mehta, Backend (2026)"
             />
           </div>
           <div className="form-row">
@@ -262,7 +296,7 @@ function SavedItems(props: SavedItemsProps) {
           </div>
           <div className="form-actions">
             <button type="submit" className="btn" disabled={saving || !ready}>
-              {saving ? "Saving…" : editingNew ? "Add" : "Save changes"}
+              {saving ? "Saving..." : editingNew ? "Add" : "Save changes"}
             </button>
             <button type="button" className="btn secondary" onClick={cancel}>
               Cancel
@@ -292,7 +326,7 @@ function SavedItems(props: SavedItemsProps) {
             <button
               type="button"
               className="btn secondary small"
-              onClick={() => void props.onDelete(item.id)}
+              onClick={() => void handleDelete(item)}
             >
               Delete
             </button>
@@ -311,6 +345,7 @@ function SavedItems(props: SavedItemsProps) {
 
 interface ConnectionListProps {
   connections: LlmConnection[];
+  onChanged: () => Promise<void> | void;
   onDelete: (id: string) => Promise<void>;
 }
 
@@ -376,11 +411,23 @@ function ConnectionList(props: ConnectionListProps) {
       } else {
         await createConnection(payload);
       }
+      await props.onChanged();
       cancel();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDelete(conn: LlmConnection) {
+    if (!window.confirm(`Delete connection "${conn.name}"? This cannot be undone.`)) return;
+    setError(null);
+    try {
+      await props.onDelete(conn.id);
+      await props.onChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
     }
   }
 
@@ -393,7 +440,6 @@ function ConnectionList(props: ConnectionListProps) {
         <span className="tag">{props.connections.length}</span>
       </h2>
       <p className="hint">
-        Keys are encrypted at rest on your server and never returned to the browser.
         Leave the key blank when editing to keep the existing one.
       </p>
 
@@ -467,7 +513,7 @@ function ConnectionList(props: ConnectionListProps) {
             </div>
             <div className="form-row">
               <label htmlFor="conn-temperature">
-                Temperature <span className="hint">(0–2, default 0.3)</span>
+                Temperature <span className="hint">(0-2, default 0.3)</span>
               </label>
               <input
                 id="conn-temperature"
@@ -486,11 +532,11 @@ function ConnectionList(props: ConnectionListProps) {
               checked={isDefault}
               onChange={(e) => setIsDefault(e.target.checked)}
             />
-            Use as the default LLM connection for new debates
+            Use as the default LLM connection for new evaluations
           </label>
           <div className="form-actions">
             <button type="submit" className="btn" disabled={saving || !ready}>
-              {saving ? "Saving…" : editingNew ? "Add connection" : "Save changes"}
+              {saving ? "Saving..." : editingNew ? "Add connection" : "Save changes"}
             </button>
             <button type="button" className="btn secondary" onClick={cancel}>
               Cancel
@@ -529,7 +575,7 @@ function ConnectionList(props: ConnectionListProps) {
             <button
               type="button"
               className="btn secondary small"
-              onClick={() => void props.onDelete(conn.id)}
+              onClick={() => void handleDelete(conn)}
             >
               Delete
             </button>

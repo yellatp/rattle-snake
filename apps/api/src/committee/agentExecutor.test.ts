@@ -17,6 +17,30 @@ function jobWith(transcript: TranscriptEntry[] = []): JobState {
   };
 }
 
+function openingJson(opening: string): string {
+  return JSON.stringify({
+    analysis: {
+      fitScore: 8,
+      factors: [
+        { factor: "Experience", score: 5, note: "matches the target level" },
+        { factor: "Education", score: 4, note: "supports the bar" },
+        { factor: "Technical Skills", score: 5, note: "exact JD stack" },
+        { factor: "Projects & Real-Time Experience", score: 4, note: "production evidence" },
+        { factor: "Domain Knowledge", score: 4, note: "recent coverage" },
+        { factor: "Sector Knowledge", score: 3, note: "transferable" },
+        { factor: "Product Thinking & Problem Solving", score: 4, note: "concrete trade-offs" },
+        { factor: "Role-Specific Signals", score: 4, note: "ownership signals" },
+      ],
+      strengths: ["strong keyword alignment", "metric-dense history"],
+      concerns: ["thin metric density", "unexplained scope gaps"],
+    },
+    opening,
+    decision: "HIRE",
+    decisionReason: "the evidence outweighs the concerns",
+    pivotFactor: "metric density",
+  });
+}
+
 describe("executeAgentTurn — non-neutrality enforcement", () => {
   const agent = getCommitteeForDomain("SWE")[1]!; // Alex, Staff Architect
 
@@ -60,7 +84,7 @@ describe("executeAgentTurn — non-neutrality enforcement", () => {
   it("falls back to the agent's prior vote when it keeps refusing", async () => {
     const complete = vi
       .fn<LLMClient["complete"]>()
-      .mockResolvedValue("I remain unsure, maybe we proceed, not sure.");
+      .mockResolvedValue("I remain unsure, maybe yes, maybe no, hard to say.");
 
     const prior = {
       id: "prior-1",
@@ -92,6 +116,75 @@ describe("executeAgentTurn — non-neutrality enforcement", () => {
       phase: "ballot",
       maxRetries: 1,
     });
+    expect(turn.entry.decision).toBe("REJECT");
+  });
+});
+
+describe("executeAgentTurn — opening 360-degree analysis", () => {
+  const agent = getCommitteeForDomain("SWE")[1]!; // Alex, Staff Architect
+
+  it("parses a JSON opening into a structured analysis + prose entry", async () => {
+    const complete = vi.fn<LLMClient["complete"]>().mockResolvedValue(
+      openingJson("[STRONG POSITIVES]\n- strong evidence\n[VERDICT]\n[STRONG HIRE] — yes"),
+    );
+
+    const turn = await executeAgentTurn({
+      llm: { provider: "stub", model: "stub", complete },
+      job: jobWith(),
+      agent,
+      phase: "opening",
+      maxRetries: 2,
+    });
+
+    expect(complete).toHaveBeenCalledTimes(1);
+    expect(turn.analysis).toBeDefined();
+    expect(turn.analysis!.fitScore).toBe(8);
+    expect(turn.analysis!.factors).toHaveLength(8);
+    expect(turn.analysis!.decision).toBe("HIRE");
+    expect(turn.analysis!.seat).toBe(agent.name);
+    expect(turn.analysis!.role).toBe(agent.role);
+    // The transcript entry holds the prose opening, not the raw JSON.
+    expect(turn.entry.text).toContain("[STRONG HIRE]");
+    expect(turn.entry.text).not.toContain("fitScore");
+    expect(turn.entry.decision).toBe("HIRE");
+    expect(turn.entry.decisionReason).toBe("the evidence outweighs the concerns");
+  });
+
+  it("skips the neutrality re-prompt when the decision came from structured JSON", async () => {
+    // The prose can read as hedged, but the structured decision is decisive.
+    const complete = vi.fn<LLMClient["complete"]>().mockResolvedValue(
+      openingJson("The candidate is average but the evidence could go either way."),
+    );
+
+    const turn = await executeAgentTurn({
+      llm: { provider: "stub", model: "stub", complete },
+      job: jobWith(),
+      agent,
+      phase: "opening",
+      maxRetries: 2,
+    });
+
+    expect(complete).toHaveBeenCalledTimes(1);
+    expect(turn.analysis).toBeDefined();
+    expect(turn.entry.decision).toBe("HIRE");
+  });
+
+  it("falls back to the prose enforcement path when the opening is not valid JSON", async () => {
+    const complete = vi
+      .fn<LLMClient["complete"]>()
+      .mockResolvedValueOnce("Opening prose without any decision marker.")
+      .mockResolvedValueOnce("[STRONG REJECT] — evidence does not support the role.");
+
+    const turn = await executeAgentTurn({
+      llm: { provider: "stub", model: "stub", complete },
+      job: jobWith(),
+      agent,
+      phase: "opening",
+      maxRetries: 2,
+    });
+
+    expect(complete).toHaveBeenCalledTimes(2);
+    expect(turn.analysis).toBeUndefined();
     expect(turn.entry.decision).toBe("REJECT");
   });
 });

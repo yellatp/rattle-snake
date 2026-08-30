@@ -1,0 +1,15 @@
+---
+import Layout from "../layouts/Layout.astro";
+import StorageView from "../components/StorageView.tsx";
+---
+<Layout title="Storage">
+  <header class="page-head">
+    <h1>Storage</h1>
+    <p class="page-sub">
+      Every run is grouped by user, then by company and role. Each one carries
+      its own files - expert discussion, resume, cover letter, and interview
+      prep - ready to view or download.
+    </p>
+  </header>
+  <StorageView client:load />
+</Layout>

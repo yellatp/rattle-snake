@@ -1,5 +1,5 @@
 import { DEFAULT_MAX_TOKENS, type ChatOptions, type LLMEndpointConfig, type LLMClient } from "./types.js";
-import { describeHttpError, withApiPath } from "./util.js";
+import { describeHttpError, fetchLlm, withApiPath } from "./util.js";
 
 /**
  * Anthropic native adapter — Messages API (FR-6.3).
@@ -12,21 +12,25 @@ export function createAnthropicClient(cfg: LLMEndpointConfig): LLMClient {
     provider: cfg.provider,
     model: cfg.model,
     async complete(system, user, opts): Promise<string> {
-      const res = await fetch(withApiPath(cfg.baseUrl, "/v1/messages"), {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": cfg.apiKey,
-          "anthropic-version": "2023-06-01",
+      const res = await fetchLlm(
+        withApiPath(cfg.baseUrl, "/v1/messages"),
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": cfg.apiKey,
+            "anthropic-version": "2023-06-01",
+          },
+          body: JSON.stringify({
+            model: cfg.model,
+            max_tokens: opts?.maxTokens ?? DEFAULT_MAX_TOKENS,
+            temperature: opts?.temperature ?? cfg.temperature,
+            system,
+            messages: [{ role: "user" as const, content: user }],
+          }),
         },
-        body: JSON.stringify({
-          model: cfg.model,
-          max_tokens: opts?.maxTokens ?? DEFAULT_MAX_TOKENS,
-          temperature: opts?.temperature ?? cfg.temperature,
-          system,
-          messages: [{ role: "user" as const, content: user }],
-        }),
-      });
+        cfg.provider,
+      );
 
       if (!res.ok) throw new Error(await describeHttpError(res, cfg.provider));
 

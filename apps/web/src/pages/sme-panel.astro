@@ -1,0 +1,10 @@
+---
+import Layout from "../layouts/Layout.astro";
+import NewJobForm from "../components/NewJobForm.tsx";
+---
+<Layout title="SME Panel">
+  <header class="page-head">
+    <h1>New committee run</h1>
+  </header>
+  <NewJobForm client:load />
+</Layout>

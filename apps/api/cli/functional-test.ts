@@ -5,11 +5,12 @@
  * mocks:
  *
  *   1. Provider wire-format E2E — runs the full pipeline (debate → blueprint →
- *      rewrite) through local fake LLM servers speaking the OpenAI-compatible,
- *      Anthropic Messages, and Gemini generateContent wire formats (PRD FR-6).
- *      No API keys required.
+ *      resume generation) through local fake LLM servers speaking the
+ *      OpenAI-compatible, Anthropic Messages, and Gemini generateContent wire
+ *      formats (PRD FR-6). No API keys required.
  *   2. HTTP API E2E — boots the real server on a port (mock provider), creates
- *      a job, polls to completion, reads the live SSE stream, checks /health.
+ *      a job, polls to completion, reads the live SSE stream, generates the
+ *      resume on demand, checks /health.
  *
  * Run: pnpm --filter @rattlesnake/api e2e   (or: pnpm e2e from repo root)
  */
@@ -121,7 +122,7 @@ async function wireFormatE2E(kind: FakeLLMKind, provider: string, serverUrl: str
 
   const job: JobState = {
     id: `func-${kind}-${Date.now()}`,
-    domain: "SWE",
+    domain: "SDE",
     jobDescription: jd,
     baseResume: resume,
     // Exercise the UK English variant on the wire-format path.
@@ -132,7 +133,7 @@ async function wireFormatE2E(kind: FakeLLMKind, provider: string, serverUrl: str
     updatedAt: new Date().toISOString(),
   };
 
-  const agents = getCommitteeForDomain("SWE");
+  const agents = getCommitteeForDomain("SDE");
   const result = await runDebate(job, agents, llm, {
     crossTalkRounds: config.debate.crossTalkRounds,
     agentMaxRetries: config.debate.agentMaxRetries,
@@ -153,7 +154,13 @@ async function wireFormatE2E(kind: FakeLLMKind, provider: string, serverUrl: str
   );
   const decisions = entries.filter((e) => e.decision).length;
 
-  check("debate transcript has all 20 rounds (5 open + 10 cross-talk + 5 ballot)", entries.length === 20, `got ${entries.length}`);
+  const crossTalk = config.debate.crossTalkRounds;
+  check(
+    `debate transcript has all rounds (${agents.length} open + ${agents.length * crossTalk} cross-talk + ${agents.length} ballot)`,
+    entries.length === agents.length * (2 + crossTalk),
+    `got ${entries.length}`,
+  );
+  check("every opening produced a 360-degree analysis", result.analyses.length === agents.length, `analyses=${result.analyses.length}`);
   check("no neutral-verdict escapes (non-neutrality enforced)", nonNeutral, `decisions=${decisions}`);
   check("consensus is non-neutral (SHORTLISTED expected from fixture)", result.consensus === "SHORTLISTED", String(result.consensus));
   check("weighted tallies reported", result.tallies.HIRE > 0 && result.tallies.REJECT >= 0);
@@ -190,7 +197,7 @@ async function main() {
     await wireFormatE2E("google", "google", fakeGoogle.url);
 
     console.log(`\n  fake servers served requests — openai=${fakeOpenAI.requests} anthropic=${fakeAnthropic.requests} google=${fakeGoogle.requests}`);
-    check("each fake provider served >= 22 pipeline calls over HTTP", fakeOpenAI.requests >= 22 && fakeAnthropic.requests >= 22 && fakeGoogle.requests >= 22);
+    check("each fake provider served >= 27 pipeline calls over HTTP", fakeOpenAI.requests >= 27 && fakeAnthropic.requests >= 27 && fakeGoogle.requests >= 27);
 
     // 2. HTTP API E2E (real server on a port, real OpenAI-compatible HTTP
     //    provider slowed to 120ms/call so the live SSE stream is observable).
@@ -206,6 +213,7 @@ async function main() {
     const tempDir = mkdtempSync(path.join(tmpdir(), "rattle-e2e-"));
     const dbPath = path.join(tempDir, "e2e.db");
     process.env.DATABASE_PATH = dbPath;
+    process.env.EXPORTS_DIR = path.join(tempDir, "exports");
 
     const { app, store, llm } = createApp();
     const server: ServerType = serve({ fetch: app.fetch, port: 9877 });
@@ -223,7 +231,7 @@ async function main() {
         body: JSON.stringify({
           jobDescription: jd,
           baseResume: resume,
-          domain: "SWE",
+          domain: "SDE",
           sectorFocus: "FinTech payments",
           location: "New York, USA",
         }),
@@ -246,16 +254,41 @@ async function main() {
       );
 
       check("job reached completed", job.status === "completed", String(job.status));
-      check("job has verdict + blueprint + rewritten resume", Boolean(job.finalVerdict && job.blueprint && job.rewrittenResume));
-      check("US-located job produced US English resume", job.resumeMeta?.locale === "us", `locale=${job.resumeMeta?.locale}`);
+      check("job has verdict + blueprint", Boolean(job.finalVerdict && job.blueprint));
+      check("job extracted JD metadata", Boolean(job.jdMeta?.company), `company=${job.jdMeta?.company}`);
+      // The runner selects the committee from the sample resume's declared
+      // ~6 years of experience (mid band), so 4 seats each produce an analysis.
+      check("committee produced 360-degree analyses", (job.analyses ?? []).length === 4, `analyses=${(job.analyses ?? []).length}`);
+      // Resume generation is an explicit handoff: nothing is written automatically.
+      check("resume not generated until requested", job.rewrittenResume === undefined);
+
+      const genRes = await fetch(`${base}/api/jobs/${created.id}/resume/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      check("POST /api/jobs/:id/resume/generate returns 200", genRes.status === 200, `got ${genRes.status}`);
+      const generated = (await genRes.json()) as { markdown: string };
+      check("generated resume is markdown with heading", generated.markdown.startsWith("# "), `head=${generated.markdown.slice(0, 40).replace(/\n/g, " ")}`);
+
+      const afterGen = await pollUntil(
+        `${base}/api/jobs/${created.id}`,
+        (j) => Boolean(j.rewrittenResume && j.resumeMeta),
+        20_000,
+      );
+      check("generated resume persisted on the job", Boolean(afterGen.rewrittenResume));
+      check("US-located job produced US English resume", afterGen.resumeMeta?.locale === "us", `locale=${afterGen.resumeMeta?.locale}`);
 
       const listRes = (await (await fetch(`${base}/api/jobs`)).json()) as { jobs: JobState[] };
       check("GET /api/jobs lists the evaluation", listRes.jobs.length >= 1, `count=${listRes.jobs.length}`);
 
       const sseText = await ssePromise;
       check("SSE stream carried live entries (real HTTP provider)", sseText.includes("event: entry"), `bytes=${sseText.length}`);
+      check("SSE stream delivered the extracted JD metadata", sseText.includes("event: jdMeta"));
+      check("SSE stream carried live 360-degree analyses", sseText.includes("event: analysis"));
       check("SSE stream delivered live done event", sseText.includes("event: done"));
-      check("fake provider received >= 22 requests through the API server", fakeSlow.requests >= 22, `requests=${fakeSlow.requests}`);
+      // role detect(1) + jdMeta(1) + debate(16) + blueprint(1) + resume generation(2) = 21.
+      check("fake provider received >= 21 requests through the API server", fakeSlow.requests >= 21, `requests=${fakeSlow.requests}`);
 
       const del = await fetch(`${base}/api/jobs/${created.id}`, { method: "DELETE" });
       check("DELETE /api/jobs/:id returns 204", del.status === 204, `got ${del.status}`);

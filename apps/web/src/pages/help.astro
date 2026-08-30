@@ -1,0 +1,232 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+<Layout title="Help & FAQ">
+  <header class="page-head">
+    <h1>Help & FAQ</h1>
+  </header>
+
+  <div class="help-list">
+    <section class="help-group">
+      <h2 class="help-group-head">How evaluations work</h2>
+      <div class="help-faq">
+        <details class="help-item">
+          <summary>What does Rattle-Snake V2 do?</summary>
+          <div class="help-item-body">
+            <p>
+              It runs a multi-agent SME committee on each job description and resume you
+              submit, producing a verdict, a hiring blueprint, and an on-demand resume.
+            </p>
+          </div>
+        </details>
+        <details class="help-item">
+          <summary>What happens when I start a run?</summary>
+          <div class="help-item-body">
+            <ol>
+              <li>JD metadata (company, role, sector, location) is extracted.</li>
+              <li>
+                Five experts (Recruiter, Technical Specialist, Team Lead, Hiring Manager,
+                Sector Specialist) each deliver a scored 360-degree analysis.
+              </li>
+              <li>The panel cross-examines the candidate.</li>
+              <li>
+                Each expert is forced to a HIRE or REJECT vote, weighted into a consensus
+                verdict.
+              </li>
+              <li>
+                A blueprint records objections, strengths, required resume changes and
+                deciding pivot factors.
+              </li>
+            </ol>
+          </div>
+        </details>
+        <details class="help-item">
+          <summary>Why are verdicts always HIRE or REJECT?</summary>
+          <div class="help-item-body">
+            <p>
+              Neutral outcomes produce no signal, so every expert must commit to a decision.
+              The verdict is advisory; the final hiring decision stays with you.
+            </p>
+          </div>
+        </details>
+        <details class="help-item">
+          <summary>Where is my data stored?</summary>
+          <div class="help-item-body">
+            <p>
+              Evaluations are persisted locally in SQLite on your server. No data leaves
+              your machine except the LLM API calls you configure.
+            </p>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <section class="help-group">
+      <h2 class="help-group-head">Committees and roles</h2>
+      <div class="help-faq">
+        <details class="help-item">
+          <summary>How are committee members chosen?</summary>
+          <div class="help-item-body">
+            <p>
+              The role is auto-detected from the JD; the LLM selects the committee from the
+              JD's title and content. Each of the 32 roles maps to a five-seat committee.
+            </p>
+          </div>
+        </details>
+        <details class="help-item">
+          <summary>What is the Sector Specialist?</summary>
+          <div class="help-item-body">
+            <p>
+              The fifth seat specializes in the sector detected from the JD and contributes
+              sector-specific notes to the blueprint.
+            </p>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <section class="help-group">
+      <h2 class="help-group-head">Resume generation</h2>
+      <div class="help-faq">
+        <details class="help-item">
+          <summary>Why is resume generation a separate step?</summary>
+          <div class="help-item-body">
+            <p>
+              Evaluations never rewrite a resume automatically. After a run completes, you
+              generate the resume on demand from the Resume page.
+            </p>
+          </div>
+        </details>
+        <details class="help-item">
+          <summary>What makes the generated resume different?</summary>
+          <div class="help-item-body">
+            <p>
+              The blueprint's objections and required changes are applied to the role
+              template, the ATS keyword gap analysis is fed into the generator, and an
+              auditor moderates the output for typography, exaggeration and qualification
+              gaps.
+            </p>
+          </div>
+        </details>
+        <details class="help-item">
+          <summary>How do I download a resume?</summary>
+          <div class="help-item-body">
+            <p>
+              Open the run page after generating and use the export bar to download PDF,
+              DOCX or plain text.
+            </p>
+          </div>
+        </details>
+        <details class="help-item">
+          <summary>Can I edit a generated resume?</summary>
+          <div class="help-item-body">
+            <p>
+              Yes. The run page has a JSON tab where you can edit the structured resume and
+              save it.
+            </p>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <section class="help-group">
+      <h2 class="help-group-head">Candidate profiles</h2>
+      <div class="help-faq">
+        <details class="help-item">
+          <summary>What is a master profile?</summary>
+          <div class="help-item-body">
+            <p>
+              The first profile you create becomes the master and is the default candidate
+              for new evaluations. You can set any profile as master later.
+            </p>
+          </div>
+        </details>
+        <details class="help-item">
+          <summary>What is a profile PIN for?</summary>
+          <div class="help-item-body">
+            <p>
+              A PIN is an optional lightweight lock for set-as-master actions on that
+              profile.
+            </p>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <section class="help-group">
+      <h2 class="help-group-head">Saved items and LLM connections</h2>
+      <div class="help-faq">
+        <details class="help-item">
+          <summary>What are saved resumes and job descriptions for?</summary>
+          <div class="help-item-body">
+            <p>
+              They act as one-click pickers on the SME Panel form so you can reuse content.
+            </p>
+          </div>
+        </details>
+        <details class="help-item">
+          <summary>How are LLM API keys handled?</summary>
+          <div class="help-item-body">
+            <p>
+              All LLM configuration lives in Settings. Stored connections are encrypted at
+              rest on your server and never returned to the browser. The connection marked
+              as default is used for every run automatically.
+            </p>
+          </div>
+        </details>
+        <details class="help-item">
+          <summary>Where do I configure the LLM?</summary>
+          <div class="help-item-body">
+            <p>
+              All LLM providers, models and keys are configured in Settings, including
+              self-hosted endpoints such as Ollama. Pick your provider there and mark a
+              default connection; the server applies it to every run.
+            </p>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <section class="help-group">
+      <h2 class="help-group-head">Cold email and interview mock</h2>
+      <div class="help-faq">
+        <details class="help-item">
+          <summary>What is the cold-email intro?</summary>
+          <div class="help-item-body">
+            <p>
+              A short outreach draft (subject and body) for a recruiter, founder or hiring
+              manager, built from the run's role, JD and the strengths the committee
+              confirmed.
+            </p>
+          </div>
+        </details>
+        <details class="help-item">
+          <summary>What is the interview mock?</summary>
+          <div class="help-item-body">
+            <p>
+              A five-expert interview plan using the same committee that debated the
+              application: typical phases, what each expert expects, drill questions, red
+              flags and prep tips.
+            </p>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <section class="help-group">
+      <h2 class="help-group-head">Templates</h2>
+      <div class="help-faq">
+        <details class="help-item">
+          <summary>What is the template library?</summary>
+          <div class="help-item-body">
+            <p>
+              Thirty-two role templates grouped by category. The role is auto-detected from
+              the JD at run time; the catalog is used for on-demand resume generation on
+              the Resume page.
+            </p>
+          </div>
+        </details>
+      </div>
+    </section>
+  </div>
+</Layout>

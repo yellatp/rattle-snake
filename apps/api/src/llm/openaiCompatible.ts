@@ -1,5 +1,5 @@
 import { DEFAULT_MAX_TOKENS, type ChatOptions, type LLMEndpointConfig, type LLMClient } from "./types.js";
-import { describeHttpError, withApiPath } from "./util.js";
+import { describeHttpError, fetchLlm, withApiPath } from "./util.js";
 
 /**
  * Generic OpenAI-compatible adapter (FR-6.2/FR-6.5). Used by OpenAI, DeepSeek,
@@ -11,22 +11,26 @@ export function createOpenAICompatibleClient(cfg: LLMEndpointConfig): LLMClient 
     provider: cfg.provider,
     model: cfg.model,
     async complete(system, user, opts): Promise<string> {
-      const res = await fetch(withApiPath(cfg.baseUrl, "/chat/completions"), {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${cfg.apiKey}`,
+      const res = await fetchLlm(
+        withApiPath(cfg.baseUrl, "/chat/completions"),
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${cfg.apiKey}`,
+          },
+          body: JSON.stringify({
+            model: cfg.model,
+            temperature: opts?.temperature ?? cfg.temperature,
+            max_tokens: opts?.maxTokens ?? DEFAULT_MAX_TOKENS,
+            messages: [
+              { role: "system", content: system },
+              { role: "user", content: user },
+            ],
+          }),
         },
-        body: JSON.stringify({
-          model: cfg.model,
-          temperature: opts?.temperature ?? cfg.temperature,
-          max_tokens: opts?.maxTokens ?? DEFAULT_MAX_TOKENS,
-          messages: [
-            { role: "system", content: system },
-            { role: "user", content: user },
-          ],
-        }),
-      });
+        cfg.provider,
+      );
 
       if (!res.ok) throw new Error(await describeHttpError(res, cfg.provider));
 

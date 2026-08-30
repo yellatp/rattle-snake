@@ -1,5 +1,5 @@
 import { DEFAULT_MAX_TOKENS, type ChatOptions, type LLMEndpointConfig, type LLMClient } from "./types.js";
-import { describeHttpError, withApiPath } from "./util.js";
+import { describeHttpError, fetchLlm, withApiPath } from "./util.js";
 
 /**
  * Google Gemini native adapter — `generateContent` (FR-6.4).
@@ -17,18 +17,22 @@ export function createGoogleClient(cfg: LLMEndpointConfig): LLMClient {
       );
       url.searchParams.set("key", cfg.apiKey);
 
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: system }] },
-          contents: [{ role: "user" as const, parts: [{ text: user }] }],
-          generationConfig: {
-            temperature: opts?.temperature ?? cfg.temperature,
-            maxOutputTokens: opts?.maxTokens ?? DEFAULT_MAX_TOKENS,
-          },
-        }),
-      });
+      const res = await fetchLlm(
+        url,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: system }] },
+            contents: [{ role: "user" as const, parts: [{ text: user }] }],
+            generationConfig: {
+              temperature: opts?.temperature ?? cfg.temperature,
+              maxOutputTokens: opts?.maxTokens ?? DEFAULT_MAX_TOKENS,
+            },
+          }),
+        },
+        cfg.provider,
+      );
 
       if (!res.ok) throw new Error(await describeHttpError(res, cfg.provider));
 

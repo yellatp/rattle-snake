@@ -1,6 +1,6 @@
-# Rattle-Snake V2 — Roadmap & Future Optimizations
+﻿# Rattle-Snake V2 — Roadmap & Future Optimizations
 
-> **Last updated:** 2026-08-12 · Aligned with sprint plan in `docs/strategy.md`. Priorities: **P1** = required for "complete", **P2** = production hardening, **P3** = extensions.
+> **Last updated:** 2026-08-29 - P1 complete; P2 largely complete (queue/worker, exports, secure defaults); v2.1.0 designed and queued below. Companion: `docs/strategy.md`.
 
 ---
 
@@ -21,11 +21,11 @@
 | 6 | **Web `start` verification** | `node ./dist/server/entry.mjs` — build + preview smoke test. |
 | 7 | **Basic auth (web + API)** | Self-hosted exposure. Bearer-token Hono middleware + Astro middleware; `AUTH_TOKEN` env. |
 | 8 | **Resume/JD file upload** | Parse `.pdf`/`.docx` → text in `NewJobForm` (pdf-parse + mammoth). |
-| 9 | **Export rewritten resume** | PDF/DOCX download from the UI. |
+| 9 | **Export rewritten resume** | Done. - client-side PDF/DOCX/TXT/MD (`apps/web/src/lib/export/`); Export Center per-run lands in v2.1.0 |
 | 10 | **Frontend e2e (Playwright)** | create → stream → verdict flow. |
 | 11 | **Token-level streaming** | Currently whole-turn completion → SSE chunked agent turns for a "live" feel. |
 | 12 | **Per-agent telemetry** | Latency, retries, token usage per agent/turn. |
-| 13 | **Rate-limit / queue debates** | In-process semaphore → BullMQ + Redis for concurrent processing. |
+| 13 | **Rate-limit / queue debates** | Done. - queue + worker with memory/Redis drivers, at-least-once Redis ack + crash recovery; rate-limit middleware (0 in dev, 60/min in prod); Redis-backed limiter for multi-node lands with v2.1.0 auth |
 | 14 | **Prompt-injection guardrails** | JD/resume text can contain adversarial instructions; isolate candidate content and instruct the model to ignore directives inside it. |
 
 ## P3 — Nice-to-have / spec extensions
@@ -62,3 +62,18 @@
 - 5 openings + (2×5) cross-talk + 5 ballot = **20 turns** + blueprint + rewrite per job.
 - With Ollama `llama3.1`, budget ~2–4 min/job on CPU; GPU or a smaller quantized model cuts this materially. Consider `LLM_TEMPERATURE` per phase (ballot already uses 0.2).
 - Token usage telemetry (P2#12) should drive a per-job cost figure.
+
+---
+
+## v2.1.0 - Content engine, A/B resumes, SaaS foundations (designed, implementation next)
+
+Design is locked (see the repository design plan). Phases land independently with the full gate green at each merge:
+
+| Phase | Scope |
+|---|---|
+| P1 | Cold-email content engine: first-person voice gate, user-selected angle/tone/audience/length, committee-insight-driven narrative, JSON `cold_email.v2` contract |
+| P2 | Resume A/B: v1 -> 3-reviewer evaluation against the same JD -> v2 addressing the findings -> deterministic comparison -> user picks the winner; `resume_versions` table + crash-safe phase cursor |
+| P3 + P3b | UI: single run workspace with stage tracker, Compare tab, Export Center (PDF/DOCX/TXT/MD incl. the full expert discussion), professional polish (naming, copy rules, no AI-style artwork, rendering resilience, API-down states) |
+| P4 | Auth: users / orgs / memberships / sessions (scrypt, hashed session ids, HttpOnly cookies, CSRF), owner/admin/member roles, login page behind a feature flag for one release |
+| P5 | JSON envelope `rattle-snake.envelope.v1` + input/output adapter registry (plug-and-play integrations; webhook payloads move to the envelope) |
+| Future | Job application auto-fill (browser extension), job-board aggregation with committee-lite match scoring, all-in-one application tracker |

@@ -28,3 +28,11 @@ logs/
 .idea/
 .DS_Store
 Thumbs.db
+
+# AI assistant configs (must be tracked for team consistency)
+!.cursorrules
+!.cursor/
+!CLAUDE.md
+!.github/copilot-instructions.md
+!Gemini.md
+!AGENTS.md

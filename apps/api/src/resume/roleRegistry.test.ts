@@ -8,8 +8,8 @@ import {
 } from "./roleRegistry.js";
 
 describe("roleRegistry", () => {
-  it("registers all 32 role templates + prompts from the V1 port", () => {
-    expect(ALL_ROLE_SLUGS).toHaveLength(32);
+  it("registers all 42 role templates + prompts from the V1 port", () => {
+    expect(ALL_ROLE_SLUGS).toHaveLength(42);
     for (const slug of ALL_ROLE_SLUGS) {
       expect(getTemplate(slug), `${slug} template`).toBeTruthy();
       expect(getRolePrompt(slug), `${slug} prompt`).toBeTruthy();
@@ -37,53 +37,53 @@ describe("roleRegistry", () => {
 });
 
 describe("resolveRoleSlug — JD-based role detection", () => {
-  it("SWE domain falls back to the flagship swe role for a backend JD", () => {
+  it("SDE domain resolves a backend JD by its title to backend_engineer", () => {
     const jd =
       "Senior Backend Engineer. TypeScript, Go, distributed systems, microservices, Kafka, PostgreSQL.";
-    expect(resolveRoleSlug("SWE", jd)).toBe("swe");
+    expect(resolveRoleSlug("SDE", jd)).toBe("backend_engineer");
   });
 
-  it("picks cloud_engineer for a cloud-focused SWE JD", () => {
+  it("picks cloud_engineer for a cloud-focused NETWORKING JD", () => {
     const jd =
       "Cloud engineer for EKS and GKE. Kubernetes, Terraform, ArgoCD, Helm, Istio, VPC, SLO, multi-region failover.";
-    expect(resolveRoleSlug("SWE", jd)).toBe("cloud_engineer");
+    expect(resolveRoleSlug("NETWORKING", jd)).toBe("cloud_engineer");
   });
 
-  it("picks data_scientist for a statistics-heavy DATA_AI JD", () => {
+  it("picks data_scientist for a statistics-heavy ML_ENGINEERING JD", () => {
     const jd =
       "Data scientist. Machine learning, statistical modeling, causal inference, A/B testing, experiment design, XGBoost.";
-    expect(resolveRoleSlug("DATA_AI", jd)).toBe("data_scientist");
+    expect(resolveRoleSlug("ML_ENGINEERING", jd)).toBe("data_scientist");
   });
 
-  it("picks pricing_analyst for a FINANCE pricing JD", () => {
+  it("picks pricing_analyst for a DATA_SCIENCE pricing JD", () => {
     const jd =
       "Pricing analyst. Pricing strategy, price elasticity, revenue modeling, LTV, ARPU, promotion analysis.";
-    expect(resolveRoleSlug("FINANCE", jd)).toBe("pricing_analyst");
+    expect(resolveRoleSlug("DATA_SCIENCE", jd)).toBe("pricing_analyst");
   });
 
   it("returns a known role even for a vague JD (flagship fallback)", () => {
-    const slug = resolveRoleSlug("FINANCE", "We are hiring someone to join our team.");
-    expect(DOMAIN_ROLES.FINANCE).toContain(slug);
+    const slug = resolveRoleSlug("PROJECT_MANAGEMENT", "We are hiring someone to join our team.");
+    expect(DOMAIN_ROLES.PROJECT_MANAGEMENT).toContain(slug);
   });
 
   it("prefers an explicit title signal over keyword overlap", () => {
     // Heavy data-engineering keywords, but the title names a backend SWE role.
     const jd =
       "Senior Backend Engineer — FinTech Payments Platform. TypeScript, Go, distributed systems, microservices, concurrency, idempotency. Event-driven architecture (Kafka, SQS). PostgreSQL at scale. PCI-DSS awareness. Production debugging and on-call ownership.";
-    expect(resolveRoleSlug("SWE", jd)).toBe("swe");
+    expect(resolveRoleSlug("SDE", jd)).toBe("backend_engineer");
   });
 
   it("matches a capitalized title in the JD (case-insensitive)", () => {
-    expect(resolveRoleSlug("DATA_AI", "Senior Data Scientist, Pricing Team")).toBe(
+    expect(resolveRoleSlug("ML_ENGINEERING", "Senior Data Scientist, Pricing Team")).toBe(
       "data_scientist",
     );
   });
 
   it("keeps the title within the job's domain", () => {
-    // The JD mentions a data title but the domain is SWE; no SWE title signal,
-    // so it falls back to keyword scoring rather than crossing domains.
+    // The JD names a data-engineer title, but the domain is SDE: no SDE title
+    // signal, so it falls back to the SDE flagship rather than crossing domains.
     const jd =
       "We need a data engineer who can build pipelines. Airflow, Spark, dbt, BigQuery, DBT models.";
-    expect(resolveRoleSlug("SWE", jd)).toBe("data_engineer");
+    expect(resolveRoleSlug("SDE", jd)).toBe("swe");
   });
 });

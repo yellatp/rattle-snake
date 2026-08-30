@@ -1,4 +1,4 @@
-import type { Decision } from "@rattlesnake/shared";
+import type { Confidence, Decision } from "@rattlesnake/shared";
 
 export interface ParsedDecision {
   decision: Decision;
@@ -78,6 +78,38 @@ export function hasNeutralLanguage(text: string): boolean {
   );
 }
 
+const CONFIDENCE_PATTERN = /\[CONFIDENCE\]\s*[:#-]?\s*(High|Medium|Low)/i;
+
+/**
+ * Extract the seat's evidence-strength confidence from a prose turn. Defaults
+ * to "Medium" when the marker is absent (safe middle ground for the weight).
+ */
+export function parseConfidence(text: string): Confidence {
+  const match = text.match(CONFIDENCE_PATTERN);
+  if (match) {
+    const value = match[1]!;
+    if (value === "High" || value === "Medium" || value === "Low") return value;
+  }
+  return "Medium";
+}
+
+const INFLATED_CLAIM_PATTERN = /INFLATED_CLAIM\s*:\s*"?([^"\n]+)"?/gi;
+
+/**
+ * Extract every INFLATED_CLAIM: line from a prose turn. The captured text is
+ * the claim itself (trailing "-> evidence:" context is trimmed). Returns []
+ * when none were flagged.
+ */
+export function parseInflatedClaims(text: string): string[] {
+  const claims: string[] = [];
+  for (const match of text.matchAll(INFLATED_CLAIM_PATTERN)) {
+    const claim = match[1]?.trim() ?? "";
+    if (claim.length === 0) continue;
+    claims.push(claim.replace(/\s*->.*$/i, "").trim());
+  }
+  return claims;
+}
+
 function buildParsedDecision(decision: Decision, marker: string, text: string): ParsedDecision {
   const lines = text.split("\n");
   const markerLine = lines.find((l) => l.includes(marker));
@@ -90,5 +122,11 @@ function buildParsedDecision(decision: Decision, marker: string, text: string): 
 }
 
 function count(text: string, needles: string[]): number {
-  return needles.reduce((acc, n) => acc + (text.includes(n) ? 1 : 0), 0);
+  return needles.reduce((acc, n) => {
+    const escaped = n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const pattern = /[a-z0-9]/.test(n)
+      ? new RegExp(`(^|[^a-z])${escaped}([^a-z]|$)`, "g")
+      : new RegExp(escaped, "g");
+    return acc + (pattern.test(text) ? 1 : 0);
+  }, 0);
 }

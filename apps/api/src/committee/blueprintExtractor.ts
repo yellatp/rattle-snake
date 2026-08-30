@@ -2,7 +2,9 @@ import {
   blueprintSchema,
   buildBlueprintPrompt,
   type Blueprint,
+  type InflatedClaim,
   type JobState,
+  type JdRequirement,
   type TranscriptEntry,
   type Verdict,
 } from "@rattlesnake/shared";
@@ -22,10 +24,13 @@ export async function extractBlueprint(
   transcript: TranscriptEntry[],
   llm: LLMClient,
 ): Promise<Blueprint> {
-  const llmResult = await extractViaLLM(job, transcript, llm).catch(() => null);
+  const llmResult = await extractViaLLM(job, transcript, llm).catch((err) => {
+    console.warn(`[pipeline] blueprint LLM extraction failed for job ${job.id}; using rule-based fallback:`, err);
+    return null;
+  });
   if (llmResult) return llmResult;
 
-  const ruleBased = extractViaRules(transcript, job.finalVerdict);
+  const ruleBased = extractViaRules(job, transcript, job.finalVerdict);
   return repairBlueprint(ruleBased);
 }
 
@@ -50,10 +55,12 @@ async function extractViaLLM(
 }
 
 function extractViaRules(
+  job: JobState,
   transcript: TranscriptEntry[],
   consensus?: Verdict,
 ): Blueprint {
   const sectionRe = /\[(STRONG POSITIVES|HIGH-RISK CONCERNS|SECTOR & TRANSFERABILITY|PIVOT POINT)\]([\s\S]*?)(?=\[|$)/gi;
+  const inflatedRe = /INFLATED_CLAIM\s*:\s*"?([^"\n]+)"?\s*->\s*evidence:\s*([^\n]+?)(?:\s*->\s*severity:\s*(High|Medium|Low))?/gi;
   const bullets = (block: string) =>
     block
       .split("\n")
@@ -65,6 +72,8 @@ function extractViaRules(
   const sectorNotes = new Set<string>();
   const pivotFactors = new Set<string>();
   const verdicts: Record<string, "HIRE" | "REJECT"> = {};
+  const inflatedClaims: InflatedClaim[] = [];
+  const seenClaims = new Set<string>();
 
   for (const entry of transcript) {
     if (entry.decision) verdicts[entry.sender] = entry.decision;
@@ -76,6 +85,17 @@ function extractViaRules(
       if (section === "HIGH-RISK CONCERNS") items.forEach((i) => objections.add(i));
       if (section === "SECTOR & TRANSFERABILITY") items.forEach((i) => sectorNotes.add(i));
       if (section === "PIVOT POINT") items.forEach((i) => pivotFactors.add(i));
+    }
+    for (const match of entry.text.matchAll(inflatedRe)) {
+      const claim = match[1]!.trim();
+      if (!claim || seenClaims.has(claim)) continue;
+      seenClaims.add(claim);
+      const severityText = (match[3] ?? "Medium").toLowerCase();
+      inflatedClaims.push({
+        claim,
+        evidence: match[2]!.trim(),
+        severity: severityText === "high" || severityText === "low" ? severityText : "medium",
+      });
     }
   }
 
@@ -95,7 +115,45 @@ function extractViaRules(
     pivotFactors: [...pivotFactors],
     verdicts,
     consensus: consensus ?? inferConsensus(verdicts),
+    credibilityFindings: [],
+    authenticityFlags: [],
+    missingSkillsRanked: [],
+    requirementMap: [],
+    inflatedClaims,
+    jdRequirements: deriveJdRequirements(job),
   };
+}
+
+/**
+ * Rule-based JD requirement triage (offline fallback). Must-haves named by the
+ * posting map to "must", nice-to-haves to "preferred". When the job
+ * decomposition is missing, the requirementMap triage is used instead.
+ */
+function deriveJdRequirements(job: JobState): JdRequirement[] {
+  const decomposition = job.jobDecomposition;
+  if (decomposition && (decomposition.mustHave.length > 0 || decomposition.niceToHave.length > 0)) {
+    const seen = new Set<string>();
+    const out: JdRequirement[] = [];
+    for (const requirement of decomposition.mustHave) {
+      const key = requirement.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ requirement, tier: "must" });
+    }
+    for (const requirement of decomposition.niceToHave) {
+      const key = requirement.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ requirement, tier: "preferred" });
+    }
+    return out;
+  }
+
+  const map = job.blueprint?.requirementMap ?? [];
+  return map.map((entry) => ({
+    requirement: entry.requirement,
+    tier: entry.status === "missing" || entry.status === "partial" ? ("must" as const) : ("preferred" as const),
+  }));
 }
 
 function deriveRequiredChanges(objections: string[]): string[] {
@@ -130,6 +188,12 @@ function repairBlueprint(bp: Blueprint): Blueprint {
     pivotFactors: bp.pivotFactors ?? [],
     verdicts: bp.verdicts ?? {},
     consensus: bp.consensus ?? "REJECTED",
+    credibilityFindings: bp.credibilityFindings ?? [],
+    authenticityFlags: bp.authenticityFlags ?? [],
+    missingSkillsRanked: bp.missingSkillsRanked ?? [],
+    requirementMap: bp.requirementMap ?? [],
+    inflatedClaims: bp.inflatedClaims ?? [],
+    jdRequirements: bp.jdRequirements ?? [],
   };
 }
 

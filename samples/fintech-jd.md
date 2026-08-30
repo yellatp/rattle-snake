@@ -1,9 +1,9 @@
-# Senior Backend Engineer — FinTech Payments Platform
+﻿# Senior Backend Engineer — FinTech Payments Platform
 
 We are building a low-latency payments processing platform. You will own services
 that move money between merchants and banks in real time.
 
-## Requirements
+## Requirements``````,,,,
 - 5+ years building backend systems in TypeScript, Go, or Java
 - Strong systems design: distributed systems, microservices, concurrency, idempotency
 - Experience with event-driven architecture (Kafka, SQS, or similar)
