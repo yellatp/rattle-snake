@@ -1,34 +1,43 @@
 import {
-  coldEmailSchema,
+  buildColdEmailV2Prompt,
+  coldEmailV2Schema,
+  type ColdEmailAngle,
   type ColdEmailAudience,
+  type ColdEmailCtaStyle,
   type ColdEmailDraft,
+  type ColdEmailLength,
   type JobState,
   type UserProfile,
 } from "@rattlesnake/shared";
 import type { LLMClient } from "../llm/types.js";
 import { getTemplate, resolveRoleSlug } from "../resume/roleRegistry.js";
 import { buildProfileBio } from "../resume/profile.js";
-import { sanitizeText, buildTypographyDirective } from "../resume/sanitize.js";
+import { sanitizeText } from "../resume/sanitize.js";
+import { runColdEmailGate } from "./coldEmailGate.js";
 
 /**
- * Cold-email "killer intro" generator for one application.
+ * Cold-email content engine v2 (design plan R1): the candidate's own
+ * first-person soft pitch. Value and capability framing, transferable-skill
+ * emphasis, dynamic alignment with the JD and the user's selections.
  *
- * Produces a short, sharp outreach draft (subject + 3-5 sentence body) aimed at
- * a recruiter, founder, or hiring manager about the candidate's application for
- * the role the job was evaluated against.
- *
- * Strategy (same pattern as the review modules):
- *   1. LLM synthesis via a cold-outreach writer prompt (best quality).
- *   2. Deterministic fallback derived from the candidate name + role + the
- *      SME panel's vetted strengths (or the resume's metric-bearing bullets).
- * Both outputs are run through the shared typography sanitizer.
+ * Strategy:
+ *   1. LLM synthesis via the v2 prompt, validated against `coldEmailV2Schema`.
+ *   2. The deterministic voice gate enforces the non-negotiables; a failed
+ *      gate triggers exactly one corrective regeneration, then the
+ *      deterministic first-person fallback takes over. The gate never loops.
  */
 export interface ColdEmailOptions {
   audience?: ColdEmailAudience;
-  /** Optional tone hint, e.g. "warm", "direct", "enthusiastic". */
+  /** Voice hint from the fixed set (direct | warm | bold | understated). */
   tone?: string;
   /** Optional recipient name used in the greeting. */
   targetName?: string;
+  /** Narrative axis that decides which strengths lead the draft. */
+  angle?: ColdEmailAngle;
+  /** Body length budget. */
+  length?: ColdEmailLength;
+  /** The ask style that closes the draft. */
+  ctaStyle?: ColdEmailCtaStyle;
 }
 
 const AUDIENCE_LABELS: Record<ColdEmailAudience, string> = {
@@ -37,13 +46,10 @@ const AUDIENCE_LABELS: Record<ColdEmailAudience, string> = {
   hiring_manager: "a hiring manager",
 };
 
-const AUDIENCE_CLOSERS: Record<ColdEmailAudience, string> = {
-  recruiter:
-    "I would welcome the chance to walk you through how my background maps to the role and the team's hiring bar.",
-  founder:
-    "I would love to bring this experience to your team and can move quickly on next steps whenever it suits you.",
-  hiring_manager:
-    "I am confident I can hit the ground running on the responsibilities in the posting and would welcome a conversation.",
+const CTA_BY_STYLE: Record<ColdEmailCtaStyle, string> = {
+  call: "Would a short 15-minute call this week work for you?",
+  reply: "Would a quick reply with a good time to talk work for you?",
+  coffee_chat: "Could we grab a short virtual coffee in the next few days?",
 };
 
 export function buildColdEmailPrompt(
@@ -51,32 +57,45 @@ export function buildColdEmailPrompt(
   profile?: UserProfile,
   options: ColdEmailOptions = {},
 ): string {
-  const roleSlug =
-    (job.roleSlug && getTemplate(job.roleSlug) ? job.roleSlug : undefined) ??
-    resolveRoleSlug(job.domain, job.jobDescription);
+  const roleSlug = resolveRoleLabelSlug(job);
   const roleLabel = getTemplate(roleSlug)?.role ?? roleSlug;
-  const audience = options.audience ?? "recruiter";
+  const candidateName = candidateDisplayName(job, profile);
 
-  const candidateName = profile
-    ? profile.personalInfo?.firstName || profile.name
-    : guessCandidateName(job.baseResume);
+  return buildColdEmailV2Prompt({
+    jobDescription: job.jobDescription,
+    roleLabel,
+    company: job.jdMeta?.company,
+    candidateName,
+    profileBio: profile ? buildProfileBio(profile) : undefined,
+    strengths: committeeStrengths(job),
+    strongMatches: (job.gapAnalysis?.gapAnalysis.strongMatches ?? []).map((m) => ({
+      item: m.item,
+      notes: m.notes,
+    })),
+    selection: {
+      audience: options.audience ?? "recruiter",
+      tone: options.tone ?? "warm",
+      angle: options.angle ?? "transferable",
+      length: options.length ?? "standard",
+      ctaStyle: options.ctaStyle ?? "call",
+      targetName: options.targetName,
+    },
+  });
+}
 
-  const highlights = committeeStrengths(job).slice(0, 3);
+function resolveRoleLabelSlug(job: JobState): string {
+  return (
+    (job.roleSlug && getTemplate(job.roleSlug) ? job.roleSlug : undefined) ??
+    resolveRoleSlug(job.domain, job.jobDescription)
+  );
+}
 
-  const blocks: string[] = [
-    `You are a cold outreach writer for job applications. You write short, high-signal outreach emails that get a reply: no fluff, no generic filler, one or two specific facts that connect the candidate to the role, and a clear, low-friction ask.`,
-    `## OUTPUT FORMAT (strict JSON, no markdown fences, no prose)\n{\n  "subject": string,   // under 70 characters, specific, no clickbait\n  "body": string       // 3-5 short sentences, plain text lines, ends with an ask\n}\n\nKeep the body 90-140 words. Use the candidate's real facts only. Never invent experience, metrics, or tools.`,
-    `## RECIPIENT\nYou are writing to ${AUDIENCE_LABELS[audience]} about the candidate's application for the ${roleLabel} role.${options.targetName ? ` The recipient's name is ${options.targetName}.` : ""}${options.tone ? ` Tone: ${options.tone}.` : ""}`,
-    `## CANDIDATE\nName: ${candidateName}\nProfile bio:\n${profile ? buildProfileBio(profile) : job.baseResume.slice(0, 1200)}`,
-    `## ROLE & STRENGTHS\nTarget role: ${roleLabel}\nVetted strengths the SME panel confirmed:\n- ${highlights.join("\n- ")}`,
-  ];
-
-  if (job.jobDescription) {
-    blocks.push(`## JOB DESCRIPTION\n${job.jobDescription}`);
-  }
-  blocks.push(buildTypographyDirective());
-
-  return blocks.join("\n\n");
+function candidateDisplayName(job: JobState, profile?: UserProfile): string {
+  return (
+    (profile ? profile.personalInfo?.firstName || profile.name : "") ||
+    guessCandidateName(job.baseResume) ||
+    "the candidate"
+  );
 }
 
 export async function generateColdEmail(
@@ -99,58 +118,108 @@ async function extractViaLLM(
   options: ColdEmailOptions,
   profile?: UserProfile,
 ): Promise<ColdEmailDraft | null> {
-  const raw = await llm.complete(
-    buildColdEmailPrompt(job, profile, options),
-    "Produce the cold email JSON only.",
-    { temperature: 0.6, maxTokens: 700 },
+  const system = buildColdEmailPrompt(job, profile, options);
+  const user = "Produce the cold email JSON only.";
+  const raw = await llm.complete(system, user, { temperature: 0.6, maxTokens: 900 });
+  const first = parseDraft(raw);
+  if (!first) return null;
+
+  const gate = runColdEmailGate(first);
+  if (gate.passed) return sanitizeDraft(first);
+
+  const corrections = [
+    "CORRECTIONS - regenerate the draft fixing every item below:",
+    ...gate.violations.map((v) => `- ${v}`),
+    "Keep everything that already satisfied the rules. Same strict JSON output format.",
+  ].join("\n");
+  const retryRaw = await llm.complete(
+    system,
+    `${user}\n\nPREVIOUS ATTEMPT:\n${raw.trim()}\n\n${corrections}`,
+    { temperature: 0.5, maxTokens: 900 },
   );
+  const second = parseDraft(retryRaw);
+  if (!second) return null;
+  const secondGate = runColdEmailGate(second);
+  if (secondGate.passed) return sanitizeDraft(second);
+
+  console.warn(
+    `[pipeline] cold-email voice gate rejected both attempts for job ${job.id}: ${[...gate.violations, ...secondGate.violations].join("; ")}`,
+  );
+  return null;
+}
+
+interface ColdEmailV2Draft {
+  subject: string;
+  body: string;
+  cta: string;
+  angleUsed: ColdEmailAngle;
+  wordCount: number;
+}
+
+function parseDraft(raw: string): ColdEmailV2Draft | null {
   const json = stripCodeFences(raw);
-  const parsed = JSON.parse(json) as unknown;
-  const validated = coldEmailSchema.safeParse(parsed);
-  if (!validated.success) return null;
+  try {
+    const parsed = JSON.parse(json) as unknown;
+    const validated = coldEmailV2Schema.safeParse(parsed);
+    if (!validated.success) return null;
+    return {
+      subject: validated.data.subject,
+      body: validated.data.body,
+      cta: validated.data.cta,
+      angleUsed: validated.data.angleUsed,
+      wordCount: validated.data.wordCount,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function sanitizeDraft(draft: ColdEmailV2Draft): ColdEmailDraft {
   return {
-    subject: sanitizeText(validated.data.subject),
-    body: sanitizeText(validated.data.body),
+    subject: sanitizeText(draft.subject),
+    body: sanitizeText(draft.body),
+    cta: sanitizeText(draft.cta),
+    angleUsed: draft.angleUsed,
+    wordCount: draft.body.split(/\s+/).filter(Boolean).length,
   };
 }
 
-/** Deterministic fallback so the endpoint works even against a broken LLM. */
+/** Deterministic first-person fallback so the endpoint works even when the LLM is down. */
 export function buildFallback(
   job: JobState,
   profile?: UserProfile,
   options: ColdEmailOptions = {},
 ): ColdEmailDraft {
-  const roleSlug =
-    (job.roleSlug && getTemplate(job.roleSlug) ? job.roleSlug : undefined) ??
-    resolveRoleSlug(job.domain, job.jobDescription);
+  const roleSlug = resolveRoleLabelSlug(job);
   const roleLabel = getTemplate(roleSlug)?.role ?? roleSlug;
   const audience = options.audience ?? "recruiter";
-  const name = profile
-    ? profile.personalInfo?.firstName || profile.name
-    : guessCandidateName(job.baseResume) || "the candidate";
+  const name = candidateDisplayName(job, profile);
+  const strengths = committeeStrengths(job);
+  const lead = strengths[0];
+  const cta = CTA_BY_STYLE[options.ctaStyle ?? "call"];
 
-  const highlights = committeeStrengths(job).slice(0, 3).map(
-    (h) => `- ${h}`,
+  const greeting = options.targetName ? `Hi ${options.targetName},` : "Hi,";
+  const opener = `I build and own work in this space end to end, and your ${roleLabel} opening reads like the kind of problem I enjoy taking on.`;
+  const capability = lead
+    ? `The clearest thing I would bring is that I ${lowerFirst(lead)}; turning requirements like yours into reliable, working systems is the habit I trust most.`
+    : `The clearest thing I would bring is the habit of turning requirements like yours into reliable, working systems.`;
+  const transferable = `If your stack differs from what I have used before, the fundamentals transfer: I pick up new domains quickly and have done so more than once.`;
+
+  const body = [greeting, "", opener, capability, transferable, "", cta, "", "Best,", name].join(
+    "\n",
   );
 
-  const body = [
-    options.targetName ? `Hi ${options.targetName},` : "Hi,",
-    "",
-    `I am ${name}, and I am applying for the ${roleLabel} role.`,
-    ...(highlights.length > 0
-      ? ["A few facts about me:", ...highlights]
-      : [`I have been working in the area this role covers and believe I can contribute from day one.`]),
-    "",
-    AUDIENCE_CLOSERS[audience],
-    "",
-    "Best regards,",
-    name,
-  ].join("\n");
-
   return {
-    subject: sanitizeText(`Application for ${roleLabel} - ${name}`),
+    subject: sanitizeText(`${name} - ${roleLabel}`),
     body: sanitizeText(body),
+    cta: sanitizeText(cta),
+    angleUsed: options.angle ?? "transferable",
+    wordCount: body.split(/\s+/).filter(Boolean).length,
   };
+}
+
+function lowerFirst(text: string): string {
+  return text.charAt(0).toLowerCase() + text.slice(1);
 }
 
 /** First plausible person's name from a resume's opening lines. */

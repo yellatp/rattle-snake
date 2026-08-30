@@ -26,41 +26,61 @@ const brokenClient = {
 } as unknown as LLMClient;
 
 describe("coldEmail.generateColdEmail", () => {
-  it("returns a sanitized subject + body via the mock LLM", async () => {
+  it("returns a first-person draft with an ask via the mock LLM", async () => {
     const { createMockClient } = await import("../llm/mock.js");
     const draft = await generateColdEmail(JOB, createMockClient(), { audience: "founder" });
     expect(draft.subject.length).toBeGreaterThan(0);
     expect(draft.body.length).toBeGreaterThan(0);
-    expect(draft.subject).toContain("Rohan Mehta");
-    expect(draft.subject).not.toContain("—");
-    expect(draft.body).not.toContain("—");
+    expect(draft.cta).toBeTruthy();
+    expect(draft.angleUsed).toBe("transferable");
+    expect(draft.body).toMatch(/\bI\b/);
+    expect(draft.body).not.toContain("\u2014");
+    expect(draft.subject).not.toContain("\u2014");
   });
 
-  it("falls back to a deterministic draft when the LLM is unavailable", async () => {
+  it("keeps the mock on the LLM path (voice gate passes)", async () => {
+    const { createMockClient } = await import("../llm/mock.js");
+    const draft = await generateColdEmail(JOB, createMockClient(), {});
+    expect(draft.body).toContain("stay fast under real production load");
+  });
+
+  it("falls back to a deterministic first-person draft when the LLM is unavailable", async () => {
     const draft = await generateColdEmail(JOB, brokenClient, { audience: "recruiter" });
     expect(draft.subject).toContain("Rohan Mehta");
-    expect(draft.body).toContain("Rohan Mehta");
-    expect(draft.body).toContain("Software Engineer");
-    expect(draft.subject).not.toContain("—");
-    expect(draft.body).not.toContain("—");
+    expect(draft.body).toContain("Hi,");
+    expect(draft.body).toMatch(/\bI\b/);
+    expect(draft.cta).toBeTruthy();
+    expect(draft.body).not.toContain("A few facts about me");
+    expect(draft.body).not.toContain("\u2014");
   });
 
-  it("honors the target name and tone options", async () => {
+  it("honors the target name and cta style options", async () => {
     const draft = await generateColdEmail(JOB, brokenClient, {
       audience: "hiring_manager",
       targetName: "Priya",
-      tone: "direct",
+      ctaStyle: "reply",
     });
     expect(draft.body).toContain("Hi Priya,");
+    expect(draft.cta).toContain("reply");
   });
 });
 
-describe("coldEmail.buildColdEmailPrompt", () => {
-  it("embeds the role, JD, and audience in the system prompt", () => {
-    const prompt = buildColdEmailPrompt(JOB, undefined, { audience: "recruiter" });
+describe("coldEmail.buildColdEmailPrompt (v2)", () => {
+  it("embeds the role, JD, audience, and the selection contract", () => {
+    const prompt = buildColdEmailPrompt(JOB, undefined, {
+      audience: "recruiter",
+      angle: "scale",
+      length: "short",
+      ctaStyle: "coffee_chat",
+      tone: "bold",
+    });
     expect(prompt).toContain("cold outreach writer");
     expect(prompt).toContain("Software Engineer");
     expect(prompt).toContain("FinTech");
+    expect(prompt).toContain("Narrative angle: scale");
+    expect(prompt).toContain("70-100 words");
+    expect(prompt).toContain("virtual coffee");
+    expect(prompt).toContain("first-person");
   });
 
   it("sources vetted strengths from the SME panel's 360-degree analyses", () => {
@@ -94,5 +114,25 @@ describe("coldEmail.buildColdEmailPrompt", () => {
     const prompt = buildColdEmailPrompt(job, undefined, { audience: "recruiter" });
     expect(prompt).toContain("real architectural ownership with scale numbers");
     expect(prompt).toContain("strong keyword alignment with the JD");
+  });
+
+  it("includes strong matches when a gap analysis exists", () => {
+    const job: JobState = {
+      ...JOB,
+      gapAnalysis: {
+        gapAnalysis: {
+          mustHaveGaps: [],
+          niceToHaveGaps: [],
+          strongMatches: [{ item: "event-driven systems", notes: "committee confirmed" }],
+          inflatedClaims: [],
+          overallReadiness: "Strong Match",
+          summary: "ok",
+        },
+        suggestions: [],
+        priorityActions: [],
+      },
+    };
+    const prompt = buildColdEmailPrompt(job, undefined, {});
+    expect(prompt).toContain("event-driven systems");
   });
 });

@@ -782,10 +782,30 @@ export interface LlmConnection {
 export interface ColdEmailDraft {
   subject: string;
   body: string;
+  /** The single low-friction ask (echoed from the closing line of the body). */
+  cta?: string;
+  /** The narrative axis the draft was written on. */
+  angleUsed?: ColdEmailAngle;
+  /** Author-reported body word count; the UI recomputes from `body`. */
+  wordCount?: number;
 }
 
 /** Cold-email recipient persona the intro is aimed at. */
 export type ColdEmailAudience = "recruiter" | "founder" | "hiring_manager";
+
+/** Narrative axis for a cold-email draft (drives which strengths lead). */
+export type ColdEmailAngle =
+  | "transferable"
+  | "depth"
+  | "scale"
+  | "leadership"
+  | "problem_taste";
+
+/** Body length budget for a cold-email draft. */
+export type ColdEmailLength = "short" | "standard";
+
+/** The ask style that closes a cold-email draft. */
+export type ColdEmailCtaStyle = "call" | "reply" | "coffee_chat";
 
 /**
  * Cover-letter draft generated for one application. The four sections map to

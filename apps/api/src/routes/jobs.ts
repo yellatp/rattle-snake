@@ -3,7 +3,11 @@ import { zValidator } from "@hono/zod-validator";
 import { streamSSE } from "hono/streaming";
 import { z } from "zod";
 import {
+  coldEmailAngleSchema,
   coldEmailAudienceSchema,
+  coldEmailCtaStyleSchema,
+  coldEmailLengthSchema,
+  coldEmailToneSchema,
   createJobSchema,
   detectDomain,
   llmOverrideSchema,
@@ -295,8 +299,11 @@ export function createJobsRouter(
   // POST /api/jobs/:id/cold-email — killer cold-email intro for the application
   const coldEmailRequestSchema = z.object({
     audience: coldEmailAudienceSchema.optional(),
-    tone: z.string().max(60).optional(),
+    tone: coldEmailToneSchema.optional(),
     targetName: z.string().max(80).optional(),
+    angle: coldEmailAngleSchema.optional(),
+    length: coldEmailLengthSchema.optional(),
+    ctaStyle: coldEmailCtaStyleSchema.optional(),
     llm: llmOverrideSchema.optional(),
     llmConnectionId: z.string().min(1).max(80).optional(),
   });
@@ -315,7 +322,14 @@ export function createJobsRouter(
     const draft = await generateColdEmail(
       job,
       resolved.client,
-      { audience: body.audience, tone: body.tone, targetName: body.targetName },
+      {
+        audience: body.audience,
+        tone: body.tone,
+        targetName: body.targetName,
+        angle: body.angle,
+        length: body.length,
+        ctaStyle: body.ctaStyle,
+      },
       profile,
     );
     audit(c, "cold_email.generated", "success", "Cold email generated", job.id);

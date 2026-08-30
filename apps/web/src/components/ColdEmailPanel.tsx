@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
-import type { ColdEmailAudience, ColdEmailDraft } from "@rattlesnake/shared";
+import type {
+  ColdEmailAngle,
+  ColdEmailAudience,
+  ColdEmailCtaStyle,
+  ColdEmailDraft,
+  ColdEmailLength,
+} from "@rattlesnake/shared";
 import { generateColdEmail } from "../lib/api";
 
 const AUDIENCE_OPTIONS: { value: ColdEmailAudience; label: string }[] = [
@@ -8,17 +14,35 @@ const AUDIENCE_OPTIONS: { value: ColdEmailAudience; label: string }[] = [
   { value: "hiring_manager", label: "Hiring Manager" },
 ];
 
-const TONE_OPTIONS = [
-  { value: "", label: "Warm (default)" },
+const TONE_OPTIONS: { value: string; label: string }[] = [
+  { value: "warm", label: "Warm" },
   { value: "direct", label: "Direct" },
-  { value: "enthusiastic", label: "Enthusiastic" },
-  { value: "concise", label: "Concise" },
+  { value: "bold", label: "Bold" },
+  { value: "understated", label: "Understated" },
+];
+
+const ANGLE_OPTIONS: { value: ColdEmailAngle; label: string }[] = [
+  { value: "transferable", label: "Transferable skills" },
+  { value: "depth", label: "Depth of judgment" },
+  { value: "scale", label: "Scale and stakes" },
+  { value: "leadership", label: "Ownership" },
+  { value: "problem_taste", label: "Problem taste" },
+];
+
+const LENGTH_OPTIONS: { value: ColdEmailLength; label: string }[] = [
+  { value: "short", label: "Short" },
+  { value: "standard", label: "Standard" },
+];
+
+const CTA_OPTIONS: { value: ColdEmailCtaStyle; label: string }[] = [
+  { value: "call", label: "Short call" },
+  { value: "reply", label: "Quick reply" },
+  { value: "coffee_chat", label: "Virtual coffee" },
 ];
 
 /**
- * Per-application cold-email killer intro. A short, high-signal outreach draft
- * (subject + body) aimed at a recruiter, founder, or hiring manager, built from
- * the application's role, JD, resume, and confirmed strengths.
+ * Cold-email composer: the candidate's first-person soft pitch, dynamically
+ * aligned with the job description and the selections below (design plan R1).
  */
 export default function ColdEmailPanel({
   jobId,
@@ -30,28 +54,37 @@ export default function ColdEmailPanel({
   const [open, setOpen] = useState(false);
   const [audience, setAudience] = useState<ColdEmailAudience>("recruiter");
   const [targetName, setTargetName] = useState("");
-  const [tone, setTone] = useState("");
+  const [tone, setTone] = useState("warm");
+  const [angle, setAngle] = useState<ColdEmailAngle>("transferable");
+  const [length, setLength] = useState<ColdEmailLength>("standard");
+  const [ctaStyle, setCtaStyle] = useState<ColdEmailCtaStyle>("call");
   const [generating, setGenerating] = useState(false);
   const [draft, setDraft] = useState<ColdEmailDraft | null>(initialDraft ?? null);
+  const [subject, setSubject] = useState(initialDraft?.subject ?? "");
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<"subject" | "body" | null>(null);
 
-  // Adopt a draft produced by a chained run (arrives after the panel mounts).
   useEffect(() => {
-    if (initialDraft) setDraft(initialDraft);
+    if (initialDraft) {
+      setDraft(initialDraft);
+      setSubject(initialDraft.subject);
+    }
   }, [initialDraft]);
 
   async function generate() {
     setGenerating(true);
     setError(null);
-    setDraft(null);
     try {
       const next = await generateColdEmail(jobId, {
         audience,
         targetName: targetName.trim() || undefined,
-        tone: tone || undefined,
+        tone,
+        angle,
+        length,
+        ctaStyle,
       });
       setDraft(next);
+      setSubject(next.subject);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -61,7 +94,7 @@ export default function ColdEmailPanel({
 
   async function copy(kind: "subject" | "body") {
     if (!draft) return;
-    const text = kind === "subject" ? draft.subject : draft.body;
+    const text = kind === "subject" ? subject : draft.body;
     try {
       await navigator.clipboard.writeText(text);
       setCopied(kind);
@@ -70,6 +103,8 @@ export default function ColdEmailPanel({
       setError("Could not copy to clipboard.");
     }
   }
+
+  const words = draft ? draft.body.split(/\s+/).filter(Boolean).length : 0;
 
   return (
     <section className="panel">
@@ -113,8 +148,56 @@ export default function ColdEmailPanel({
             </div>
             <div className="form-row">
               <label htmlFor="ce-tone">Tone</label>
-              <select id="ce-tone" value={tone} onChange={(e) => setTone(e.target.value)}>
+              <select
+                id="ce-tone"
+                value={tone}
+                onChange={(e) => setTone(e.target.value)}
+              >
                 {TONE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="grid-3">
+            <div className="form-row">
+              <label htmlFor="ce-angle">Lead with</label>
+              <select
+                id="ce-angle"
+                value={angle}
+                onChange={(e) => setAngle(e.target.value as ColdEmailAngle)}
+              >
+                {ANGLE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="form-row">
+              <label htmlFor="ce-length">Length</label>
+              <select
+                id="ce-length"
+                value={length}
+                onChange={(e) => setLength(e.target.value as ColdEmailLength)}
+              >
+                {LENGTH_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="form-row">
+              <label htmlFor="ce-cta">The ask</label>
+              <select
+                id="ce-cta"
+                value={ctaStyle}
+                onChange={(e) => setCtaStyle(e.target.value as ColdEmailCtaStyle)}
+              >
+                {CTA_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
                     {opt.label}
                   </option>
@@ -148,9 +231,16 @@ export default function ColdEmailPanel({
                   {copied === "subject" ? "Copied" : "Copy"}
                 </button>
               </div>
-              <pre className="ce-subject">{draft.subject}</pre>
+              <input
+                className="ce-subject-edit"
+                type="text"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                aria-label="Email subject"
+              />
               <div className="copy-row">
                 <strong>Body</strong>
+                <span className="hint">{words} words</span>
                 <button
                   type="button"
                   className="btn small"
@@ -160,6 +250,11 @@ export default function ColdEmailPanel({
                 </button>
               </div>
               <pre className="ce-body">{draft.body}</pre>
+              {draft.cta && (
+                <p className="hint">
+                  <strong>The ask:</strong> {draft.cta}
+                </p>
+              )}
               <button
                 type="button"
                 className="btn secondary small"

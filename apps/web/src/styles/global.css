@@ -1850,6 +1850,16 @@ select:focus {
   border: 1px solid var(--border);
 }
 
+.ce-subject-edit {
+  width: 100%;
+  font-family: var(--font);
+  color: var(--text);
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+}
+
 .ce-body {
   min-height: 120px;
 }

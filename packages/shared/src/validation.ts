@@ -276,9 +276,37 @@ export type LlmConnectionUpdateInput = z.infer<typeof llmConnectionUpdateSchema>
 export const coldEmailSchema = z.object({
   subject: z.string().min(1),
   body: z.string().min(1),
+  cta: z.string().min(1).optional(),
+  angleUsed: z
+    .enum(["transferable", "depth", "scale", "leadership", "problem_taste"])
+    .optional(),
+  wordCount: z.number().int().min(0).optional(),
 });
 
 export const coldEmailAudienceSchema = z.enum(["recruiter", "founder", "hiring_manager"]);
+
+export const coldEmailAngleSchema = z.enum([
+  "transferable",
+  "depth",
+  "scale",
+  "leadership",
+  "problem_taste",
+]);
+
+export const coldEmailLengthSchema = z.enum(["short", "standard"]);
+
+export const coldEmailCtaStyleSchema = z.enum(["call", "reply", "coffee_chat"]);
+
+export const coldEmailToneSchema = z.enum(["direct", "warm", "bold", "understated"]);
+
+/** Strict output contract for the v2 cold-email content engine. */
+export const coldEmailV2Schema = z.object({
+  subject: z.string().min(1).max(200),
+  body: z.string().min(1),
+  cta: z.string().min(1),
+  angleUsed: coldEmailAngleSchema,
+  wordCount: z.number().int().min(0),
+});
 
 /** Cover-letter draft generated for one application. */
 export const coverLetterSchema = z.object({

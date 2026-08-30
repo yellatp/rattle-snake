@@ -170,6 +170,9 @@ export interface ColdEmailRequest {
   audience?: ColdEmailAudience;
   tone?: string;
   targetName?: string;
+  angle?: string;
+  length?: string;
+  ctaStyle?: string;
 }
 
 export function generateColdEmail(

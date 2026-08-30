@@ -215,18 +215,17 @@ const MOCK_EXEC_REVIEW_JSON = JSON.stringify({
 });
 
 const MOCK_COLD_EMAIL_JSON = JSON.stringify({
-  subject: "Senior Software Engineer application - Rohan Mehta",
+  subject: "Rohan Mehta - backend systems and your platform",
   body: [
     "Hi,",
-    "I am Rohan Mehta, a backend engineer with 6 years building low-latency, event-driven systems in TypeScript and Go.",
-    "- Reduced order-processing API latency by 40% across 2M+ monthly orders",
-    "- Migrated a 12-service monolith to Kafka-based microservices on AWS, cutting deploy time from 45min to 5min",
-    "- Own production reliability with idempotent retry handling and on-call SLO work",
-    "I see your Senior Software Engineer opening and believe my experience maps directly to the responsibilities in the posting.",
-    "I would welcome the chance to walk you through how my background matches the role.",
-    "Best regards,",
-    "Rohan Mehta",
+    "I build and run backend systems that stay fast under real production load, and I enjoy owning them end to end, from design through on-call.",
+    "Most of my work has been in event-driven services where correctness and latency both matter, and I like the kind of judgment that keeps systems simple as they grow.",
+    "What drew me to this opening is the focus on reliable payments infrastructure; the same care I put into idempotent design and clean failure handling would transfer directly to your team's domain.",
+    "Would a short 15-minute call this week work for you?",
   ].join("\n"),
+  cta: "Would a short 15-minute call this week work for you?",
+  angleUsed: "transferable",
+  wordCount: 96,
 });
 
 const MOCK_COVER_LETTER_JSON = JSON.stringify({
