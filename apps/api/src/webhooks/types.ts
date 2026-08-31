@@ -43,10 +43,3 @@ export interface WebhookUpdateInput {
   secret?: string;
   isActive?: boolean;
 }
-
-export interface WebhookPayload {
-  event: WebhookEvent;
-  timestamp: string;
-  tenantId?: string;
-  data: JobEvent;
-}

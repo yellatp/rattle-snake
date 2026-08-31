@@ -1,7 +1,7 @@
 import { createHmac } from "node:crypto";
-import type { JobEvent } from "@rattlesnake/shared";
+import { createEnvelope, type Envelope, type JobEvent } from "@rattlesnake/shared";
 import type { JobStore } from "../db/store.js";
-import type { WebhookEvent, WebhookPayload, WebhookWithSecret } from "./types.js";
+import type { WebhookEvent, WebhookWithSecret } from "./types.js";
 
 const WEBHOOK_TIMEOUT_MS = 10_000;
 const WEBHOOK_MAX_ATTEMPTS = 3;
@@ -36,7 +36,7 @@ function mapJobEventToWebhookEvent(event: JobEvent): WebhookEvent | null {
   }
 }
 
-function signPayload(payload: WebhookPayload, secret: string): string {
+function signPayload(payload: Envelope<JobEvent>, secret: string): string {
   const body = JSON.stringify(payload);
   return createHmac("sha256", secret).update(body).digest("hex");
 }
@@ -57,12 +57,10 @@ export async function dispatchWebhook(
     return { webhookId: webhook.id, success: true };
   }
 
-  const payload: WebhookPayload = {
-    event: eventName,
-    timestamp: new Date().toISOString(),
+  const payload: Envelope<JobEvent> = createEnvelope(eventName, 1, event, {
     tenantId: webhook.tenantId,
-    data: event,
-  };
+    jobId: event.jobId,
+  });
 
   const body = JSON.stringify(payload);
   const headers: Record<string, string> = {
