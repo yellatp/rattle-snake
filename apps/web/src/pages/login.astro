@@ -1,0 +1,14 @@
+---
+import Layout from "../layouts/Layout.astro";
+import LoginView from "../components/LoginView.tsx";
+import HydrationWatch from "../components/HydrationWatch.astro";
+---
+<Layout title="Sign in">
+  <header class="page-head">
+    <h1>Sign in</h1>
+  </header>
+  <div id="page-app">
+    <LoginView client:load />
+  </div>
+  <HydrationWatch hostId="page-app" />
+</Layout>

@@ -40,6 +40,12 @@ export function loadConfig() {
     requireApiKeyEnv !== undefined
       ? requireApiKeyEnv === "true" || requireApiKeyEnv === "1"
       : env.NODE_ENV === "production";
+  // User-account auth ships behind a flag for one release (design plan R3/P4):
+  // false = sessions exist but nothing is enforced; true = session or API key
+  // required on every non-probe route, and legacy NULL-tenant rows are
+  // backfilled to the default org (strict tenant isolation).
+  const requireAuthEnv = env.REQUIRE_AUTH?.toLowerCase();
+  const requireAuth = requireAuthEnv === "true" || requireAuthEnv === "1";
 
   return {
     port: int(env.API_PORT, 8787),
@@ -80,6 +86,10 @@ export function loadConfig() {
     audit: {
       level: env.AUDIT_LOG_LEVEL ?? (env.NODE_ENV === "production" ? "info" : "debug"),
       pretty: env.AUDIT_PRETTY !== "false" && env.NODE_ENV !== "production",
+    },
+    auth: {
+      requireAuth,
+      tenantStrict: requireAuth || env.TENANT_STRICT === "true" || env.TENANT_STRICT === "1",
     },
   };
 }

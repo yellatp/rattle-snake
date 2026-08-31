@@ -5,6 +5,7 @@ interface Props {
 }
 const { title } = Astro.props;
 const path = Astro.url.pathname;
+const signedIn = Boolean(Astro.cookies.get("rs_session")?.value);
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", short: "Dashboard" },
@@ -49,6 +50,11 @@ function isActive(href: string): boolean {
               </a>
             ))
           }
+          {!signedIn && path !== "/login" && (
+            <a class="side-link" href="/login">
+              <span class="side-link-short">Sign in</span>
+            </a>
+          )}
         </nav>
       </aside>
       <main class="site-main">

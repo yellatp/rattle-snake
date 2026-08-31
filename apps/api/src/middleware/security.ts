@@ -1,6 +1,8 @@
 import type { Context, Next } from "hono";
 import type { AuditLogger } from "../audit/logger.js";
 import type { AuditEvent } from "../audit/types.js";
+import type { JobStore } from "../db/store.js";
+import { CSRF_COOKIE, SESSION_COOKIE, readSession } from "../auth/sessions.js";
 
 export interface SecurityConfig {
   maxBodySizeBytes: number;
@@ -11,12 +13,18 @@ export interface SecurityConfig {
   auditLogger: AuditLogger;
   /** Trust x-forwarded-for/x-real-ip (set only when running behind a trusted proxy). */
   trustProxy?: boolean;
+  /** Require a session or API key on every non-probe route (design plan P4). */
+  requireAuth?: boolean;
+  /** Store handle for session lookups; sessions are inactive when absent. */
+  store?: JobStore;
 }
 
 interface RateLimitEntry {
   count: number;
   resetAt: number;
 }
+
+const MUTATION_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 const rateLimits = new Map<string, RateLimitEntry>();
 
@@ -100,6 +108,16 @@ export function rateLimitMiddleware(config: SecurityConfig) {
   };
 }
 
+function readCookie(c: Context, name: string): string | undefined {
+  const cookieHeader = c.req.header("cookie");
+  if (!cookieHeader) return undefined;
+  for (const part of cookieHeader.split(";")) {
+    const [key, ...rest] = part.trim().split("=");
+    if (key === name) return rest.join("=");
+  }
+  return undefined;
+}
+
 export function authMiddleware(config: SecurityConfig) {
   const trustProxy = config.trustProxy ?? false;
   return async (c: Context, next: Next) => {
@@ -109,36 +127,82 @@ export function authMiddleware(config: SecurityConfig) {
       await next();
       return;
     }
-    const tenantHeader = c.req.header("x-tenant-id");
-    const apiKeyHeader = c.req.header("x-api-key");
 
-    if (config.requireApiKey) {
+    // The auth router manages its own sessions; register/login must be
+    // reachable without credentials.
+    if (c.req.path.startsWith("/api/auth/")) {
+      c.set("tenantId", "default");
+      c.set("apiKeyId", "anonymous");
+      await next();
+      return;
+    }
+
+    // 1. Session (cookie) resolution - enables user context when present.
+    const session = config.store
+      ? readSession(config.store, readCookie(c, SESSION_COOKIE))
+      : null;
+
+    // 2. API key resolution (machine clients).
+    const apiKeyHeader = c.req.header("x-api-key");
+    let apiKeyMatch: { tenantId: string; keyId: string } | undefined;
+    if (apiKeyHeader) {
+      const fromEnv = config.apiKeys?.get(apiKeyHeader);
+      const fromDb = fromEnv ?? (config.store ? config.store.getApiKeyByRaw(apiKeyHeader) ?? undefined : undefined);
+      if (fromDb) {
+        apiKeyMatch = { tenantId: "tenantId" in fromDb ? fromDb.tenantId : (fromDb as { orgId: string }).orgId, keyId: fromDb.keyId };
+      }
+    }
+
+    const requireAuth = config.requireAuth ?? false;
+    if (session) {
+      c.set("tenantId", session.orgId);
+      c.set("userId", session.userId);
+      c.set("apiKeyId", "session");
+      // CSRF double-check for cookie-authenticated mutations (plan 4.2):
+      // API-key clients are exempt (no ambient credentials).
+      if (MUTATION_METHODS.has(c.req.method) && !c.req.path.startsWith("/api/auth/")) {
+        const headerToken = c.req.header("x-csrf-token");
+        const cookieToken = readCookie(c, CSRF_COOKIE);
+        if (!headerToken || headerToken !== session.csrfToken) {
+          return c.json({ error: "Missing or invalid CSRF token." }, 403);
+        }
+      }
+    } else if (apiKeyMatch) {
+      c.set("tenantId", apiKeyMatch.tenantId);
+      c.set("apiKeyId", apiKeyMatch.keyId);
+    } else if (requireAuth) {
+      config.auditLogger.log({
+        timestamp: new Date().toISOString(),
+        action: "auth.rejected",
+        tenantId: c.req.header("x-tenant-id") ?? "default",
+        ip: requestIp(c, trustProxy),
+        outcome: "denied",
+        message: "No session or API key",
+      } as AuditEvent);
+      return c.json({ error: "Sign in required." }, 401);
+    } else if (config.requireApiKey) {
       if (!apiKeyHeader) {
         config.auditLogger.log({
           timestamp: new Date().toISOString(),
           action: "api_key.rejected",
-          tenantId: tenantHeader ?? "default",
+          tenantId: c.req.header("x-tenant-id") ?? "default",
           ip: requestIp(c, trustProxy),
           outcome: "denied",
           message: "Missing API key",
         } as AuditEvent);
         return c.json({ error: "API key required." }, 401);
       }
-      const key = config.apiKeys?.get(apiKeyHeader);
-      if (!key) {
-        config.auditLogger.log({
-          timestamp: new Date().toISOString(),
-          action: "api_key.rejected",
-          tenantId: tenantHeader ?? "default",
-          ip: requestIp(c, trustProxy),
-          outcome: "denied",
-          message: "Invalid API key",
-        } as AuditEvent);
-        return c.json({ error: "Invalid API key." }, 401);
-      }
-      c.set("tenantId", key.tenantId);
-      c.set("apiKeyId", key.keyId);
+      config.auditLogger.log({
+        timestamp: new Date().toISOString(),
+        action: "api_key.rejected",
+        tenantId: c.req.header("x-tenant-id") ?? "default",
+        ip: requestIp(c, trustProxy),
+        outcome: "denied",
+        message: "Invalid API key",
+      } as AuditEvent);
+      return c.json({ error: "Invalid API key." }, 401);
     } else {
+      const tenantHeader = c.req.header("x-tenant-id");
       c.set("tenantId", tenantHeader ?? "default");
       c.set("apiKeyId", apiKeyHeader ?? "system");
     }

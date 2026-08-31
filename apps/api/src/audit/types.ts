@@ -37,6 +37,11 @@ export type AuditAction =
   | "webhook.updated"
   | "webhook.deleted"
   | "webhook.dispatch_failed"
+  | "auth.registered"
+  | "auth.login"
+  | "auth.login_failed"
+  | "auth.logout"
+  | "auth.rejected"
   | "api_key.used"
   | "api_key.rejected"
   | "rate_limit.hit";

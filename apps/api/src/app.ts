@@ -15,6 +15,7 @@ import { createEventBus } from "./events/factory.js";
 import { createQueue } from "./queue/factory.js";
 import { createDefaultWorker } from "./worker/runner.js";
 import { dispatchEventToTenantWebhooks } from "./webhooks/dispatcher.js";
+import { createAuthRouter } from "./auth/routes.js";
 import {
   authMiddleware,
   auditContextMiddleware,
@@ -71,7 +72,23 @@ export function createApp() {
   const securityConfig: import("./middleware/security.js").SecurityConfig = {
     ...config.security,
     auditLogger,
+    requireAuth: config.auth.requireAuth,
+    store,
   };
+
+  // Boot-time auth bootstrap (design plan P4/D6): the default org receives the
+  // env-defined API keys, and when strict mode is on, legacy NULL-tenant rows
+  // are reassigned to it so tenant isolation holds without query changes.
+  store.ensureDefaultOrg();
+  for (const [key, meta] of config.security.apiKeys ?? []) {
+    store.seedApiKey(key, meta.keyId, "default");
+  }
+  if (config.auth.tenantStrict) {
+    const moved = store.backfillNullTenants("default");
+    if (moved > 0) {
+      console.log(`[rattle-snake-v2] strict tenants: assigned ${moved} legacy row(s) to the default workspace`);
+    }
+  }
 
   const app = new Hono();
 
@@ -97,6 +114,7 @@ export function createApp() {
   app.route("/api/exports", createExportsRouter(store, config));
   app.route("/api/storage", createStorageRouter(store));
   app.route("/api/webhooks", createWebhooksRouter(store, auditLogger));
+  app.route("/api/auth", createAuthRouter(store, config, auditLogger));
   app.route("/api", createSettingsRouter(store, llm, config, auditLogger));
 
   return { app, store, llm, config, bus, queue, worker, auditLogger };

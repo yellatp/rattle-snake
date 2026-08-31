@@ -186,6 +186,41 @@ export function generateColdEmail(
   });
 }
 
+// --- Auth --------------------------------------------------------------------------
+
+export interface AuthStatus {
+  authenticated: boolean;
+  userId?: string;
+  orgId?: string;
+  role?: string;
+}
+
+export function registerAccount(
+  email: string,
+  password: string,
+  name?: string,
+): Promise<AuthStatus> {
+  return request<AuthStatus>("/api/auth/register", {
+    method: "POST",
+    body: JSON.stringify({ email, password, name: name || undefined }),
+  });
+}
+
+export function loginAccount(email: string, password: string): Promise<AuthStatus> {
+  return request<AuthStatus>("/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+export function logoutAccount(): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>("/api/auth/logout", { method: "POST", body: "{}" });
+}
+
+export function authStatus(): Promise<AuthStatus> {
+  return request<AuthStatus>("/api/auth/me");
+}
+
 // --- Resume A/B review -------------------------------------------------------------
 
 export interface ResumeVersionInfo {

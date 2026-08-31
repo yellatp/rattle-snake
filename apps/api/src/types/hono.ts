@@ -5,6 +5,9 @@ declare module "hono" {
     tenantId: string;
     apiKeyId: string;
     audit: AuditLogger;
+    userId?: string;
+    sessionId?: string;
+    role?: "owner" | "admin" | "member";
   }
 }
 

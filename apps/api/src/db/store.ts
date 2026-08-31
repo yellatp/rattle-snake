@@ -1,5 +1,5 @@
 import Database from "better-sqlite3";
-import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import type {
@@ -295,6 +295,39 @@ export class JobStore {
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        email TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL DEFAULT '',
+        password_hash TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS orgs (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS memberships (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        org_id TEXT NOT NULL,
+        role TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS sessions (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        org_id TEXT NOT NULL,
+        csrf_token TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS api_keys (
+        key_hash TEXT PRIMARY KEY,
+        key_id TEXT NOT NULL,
+        org_id TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
       CREATE TABLE IF NOT EXISTS meta (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
@@ -460,7 +493,7 @@ export class JobStore {
     }
     // Webhooks table is created by CREATE TABLE IF NOT EXISTS above; no ALTER needed.
     // Marker for the migration set applied to this database file.
-    this.db.pragma("user_version = 4");
+    this.db.pragma("user_version = 5");
     // Migrate the legacy single-row profile into a master profile on first open
     // so existing data is preserved when the new profiles table is empty.
     this.migrateLegacyProfile();
@@ -1276,6 +1309,182 @@ export class JobStore {
           .prepare("SELECT * FROM resume_versions WHERE job_id = @jobId ORDER BY version ASC")
           .all({ jobId }) as ResumeVersionRow[]);
     return rows.map(resumeVersionFromRow);
+  }
+
+  // --- Auth: users, orgs, sessions, api keys (design plan R3/P4) --------------
+
+  emailExists(email: string): boolean {
+    const row = this.db.prepare("SELECT 1 FROM users WHERE email = ?").get(email.toLowerCase());
+    return row !== undefined;
+  }
+
+  createUser(input: {
+    email: string;
+    name: string;
+    passwordHash: string;
+  }): { id: string; email: string; name: string } {
+    if (this.emailExists(input.email)) {
+      throw new Error("An account with this email already exists.");
+    }
+    const id = newId("usr_");
+    const now = new Date().toISOString();
+    this.db
+      .prepare(
+        `INSERT INTO users (id, email, name, password_hash, created_at)
+         VALUES (@id, @email, @name, @passwordHash, @createdAt)`,
+      )
+      .run({
+        id,
+        email: input.email.toLowerCase(),
+        name: input.name,
+        passwordHash: input.passwordHash,
+        createdAt: now,
+      });
+    return { id, email: input.email.toLowerCase(), name: input.name };
+  }
+
+  getUserByEmail(email: string): { id: string; email: string; name: string; passwordHash: string } | null {
+    const row = this.db
+      .prepare("SELECT id, email, name, password_hash FROM users WHERE email = ?")
+      .get(email.toLowerCase()) as
+      | { id: string; email: string; name: string; password_hash: string }
+      | undefined;
+    return row
+      ? { id: row.id, email: row.email, name: row.name, passwordHash: row.password_hash }
+      : null;
+  }
+
+  /** Creates a personal org with an owner membership; returns the org id. */
+  createOrgWithOwner(userId: string, orgName: string): string {
+    const orgId = newId("org_");
+    const now = new Date().toISOString();
+    const tx = this.db.transaction(() => {
+      this.db
+        .prepare("INSERT INTO orgs (id, name, created_at) VALUES (@id, @name, @createdAt)")
+        .run({ id: orgId, name: orgName, createdAt: now });
+      this.db
+        .prepare(
+          `INSERT INTO memberships (id, user_id, org_id, role, created_at)
+           VALUES (@id, @userId, @orgId, 'owner', @createdAt)`,
+        )
+        .run({ id: newId("mbr_"), userId, orgId, createdAt: now });
+    });
+    tx();
+    return orgId;
+  }
+
+  getMembershipRole(userId: string, orgId: string): "owner" | "admin" | "member" | null {
+    const row = this.db
+      .prepare("SELECT role FROM memberships WHERE user_id = ? AND org_id = ?")
+      .get(userId, orgId) as { role: string } | undefined;
+    if (!row) return null;
+    return row.role as "owner" | "admin" | "member";
+  }
+
+  getFirstOrgIdForUser(userId: string): string | null {
+    const row = this.db
+      .prepare("SELECT org_id FROM memberships WHERE user_id = ? ORDER BY created_at ASC LIMIT 1")
+      .get(userId) as { org_id: string } | undefined;
+    return row?.org_id ?? null;
+  }
+
+  ensureDefaultOrg(): void {
+    this.db
+      .prepare(
+        `INSERT INTO orgs (id, name, created_at) VALUES ('default', 'Default workspace', @createdAt)
+         ON CONFLICT(id) DO NOTHING`,
+      )
+      .run({ createdAt: new Date().toISOString() });
+  }
+
+  createSession(input: {
+    userId: string;
+    orgId: string;
+    sessionIdHash: string;
+    csrfToken: string;
+    expiresAt: string;
+  }): void {
+    this.db
+      .prepare(
+        `INSERT INTO sessions (id, user_id, org_id, csrf_token, expires_at, created_at)
+         VALUES (@id, @userId, @orgId, @csrfToken, @expiresAt, @createdAt)`,
+      )
+      .run({
+        id: input.sessionIdHash,
+        userId: input.userId,
+        orgId: input.orgId,
+        csrfToken: input.csrfToken,
+        expiresAt: input.expiresAt,
+        createdAt: new Date().toISOString(),
+      });
+  }
+
+  getSession(sessionIdHash: string): {
+    sessionId: string;
+    userId: string;
+    orgId: string;
+    csrfToken: string;
+    expiresAt: string;
+  } | null {
+    const row = this.db
+      .prepare("SELECT id, user_id, org_id, csrf_token, expires_at FROM sessions WHERE id = ?")
+      .get(sessionIdHash) as
+      | { id: string; user_id: string; org_id: string; csrf_token: string; expires_at: string }
+      | undefined;
+    if (!row) return null;
+    if (new Date(row.expires_at).getTime() < Date.now()) {
+      this.db.prepare("DELETE FROM sessions WHERE id = ?").run(sessionIdHash);
+      return null;
+    }
+    return {
+      sessionId: row.id,
+      userId: row.user_id,
+      orgId: row.org_id,
+      csrfToken: row.csrf_token,
+      expiresAt: row.expires_at,
+    };
+  }
+
+  deleteSession(sessionIdHash: string): void {
+    this.db.prepare("DELETE FROM sessions WHERE id = ?").run(sessionIdHash);
+  }
+
+  seedApiKey(rawKey: string, keyId: string, orgId: string): void {
+    this.db
+      .prepare(
+        `INSERT INTO api_keys (key_hash, key_id, org_id, created_at)
+         VALUES (@keyHash, @keyId, @orgId, @createdAt)
+         ON CONFLICT(key_hash) DO NOTHING`,
+      )
+      .run({
+        keyHash: createHash("sha256").update(rawKey).digest("hex"),
+        keyId,
+        orgId,
+        createdAt: new Date().toISOString(),
+      });
+  }
+
+  getApiKeyByRaw(rawKey: string): { keyId: string; orgId: string } | null {
+    const keyHash = createHash("sha256").update(rawKey).digest("hex");
+    const row = this.db
+      .prepare("SELECT key_id, org_id FROM api_keys WHERE key_hash = ?")
+      .get(keyHash) as { key_id: string; org_id: string } | undefined;
+    return row ? { keyId: row.key_id, orgId: row.org_id } : null;
+  }
+
+  /** Strict isolation (D6): one-time backfill of legacy NULL-tenant rows. */
+  backfillNullTenants(orgId: string): number {
+    let changed = 0;
+    const tables = ["jobs", "profiles", "saved_resumes", "saved_jds", "llm_connections", "webhooks", "resume_versions"];
+    const tx = this.db.transaction(() => {
+      for (const table of tables) {
+        changed += this.db
+          .prepare(`UPDATE ${table} SET tenant_id = @orgId WHERE tenant_id IS NULL`)
+          .run({ orgId }).changes;
+      }
+    });
+    tx();
+    return changed;
   }
 
   /** Cheap liveness probe for load balancers and orchestrators. */
