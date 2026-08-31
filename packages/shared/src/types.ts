@@ -621,6 +621,12 @@ export interface JobState {
   llmUsed?: { provider: string; model: string };
   /** Gap analysis produced after the committee run, before resume generation. */
   gapAnalysis?: GapAnalysisResult;
+  /** A/B review cursor: v1 -> eval1 -> v2 -> eval2 -> comparison -> done. */
+  abPhase?: ResumeAbPhase;
+  /** Deterministic side-by-side comparison of the two resume versions. */
+  comparison?: ResumeComparison;
+  /** The version the user picked as canonical (1 = v1, 2 = v2). */
+  selectedVersion?: 1 | 2;
   /** User-provided amendment notes that guide resume generation. */
   amendmentNotes?: string;
   status: JobStatus;
@@ -807,6 +813,36 @@ export type ColdEmailLength = "short" | "standard";
 /** The ask style that closes a cold-email draft. */
 export type ColdEmailCtaStyle = "call" | "reply" | "coffee_chat";
 
+/** A/B review cursor for the two-version resume flow. */
+export type ResumeAbPhase = "v1" | "eval1" | "v2" | "eval2" | "comparison" | "done";
+
+/** One reviewer seat's structured verdict on a resume version. */
+export interface ResumeEvaluation {
+  scores: {
+    jdCoverage: number;
+    credibility: number;
+    clarity: number;
+    atsReadiness: number;
+  };
+  strengths: string[];
+  issues: Array<{
+    severity: "high" | "medium" | "low";
+    section: string;
+    finding: string;
+    fixHint: string;
+  }>;
+  verdict: "ship" | "revise";
+}
+
+/** Deterministic comparison of the two evaluated versions (weights in code). */
+export interface ResumeComparison {
+  v1Total: number;
+  v2Total: number;
+  dimensionDeltas: Record<string, number>;
+  recommendation: "v1" | "v2" | "tie";
+  rationale: string;
+}
+
 /**
  * Cover-letter draft generated for one application. The four sections map to
  * the classic letter layout so the web panel can render them independently.
@@ -892,5 +928,14 @@ export type JobEvent =
   | { type: "coldEmail"; jobId: string; draft: ColdEmailDraft }
   | { type: "coverLetter"; jobId: string; draft: CoverLetterDraft }
   | { type: "interview"; jobId: string; plan: InterviewPrepPlan }
+  | { type: "resumeEval"; jobId: string; version: 1 | 2; evaluation: ResumeEvaluation }
+  | {
+      type: "resumeVariant";
+      jobId: string;
+      version: 2;
+      markdown: string;
+      templateJson: string;
+    }
+  | { type: "resumeComparison"; jobId: string; comparison: ResumeComparison }
   | { type: "done"; jobId: string; job: JobState }
   | { type: "error"; jobId: string; message: string };

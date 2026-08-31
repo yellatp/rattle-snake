@@ -25,6 +25,7 @@ import {
 import type { EventBus } from "../events/types.js";
 import type { Queue } from "../queue/types.js";
 import { isRunActive, requestCancel } from "../committee/runner.js";
+import { isResumeAbActive } from "../committee/resumeAb.js";
 import { generateColdEmail } from "../outreach/coldEmail.js";
 import { generateCoverLetter } from "../outreach/coverLetter.js";
 import { generateInterviewMock } from "../interview/mock.js";
@@ -242,14 +243,107 @@ export function createJobsRouter(
     }
   });
 
+  // POST /api/jobs/:id/resume/ab-run - start the A/B review (design plan R2).
+  // Explicit action only (D5); the cursor guard returns 409 while one is
+  // in flight (D2).
+  const resumeSelectSchema = z.object({ version: z.union([z.literal(1), z.literal(2)]) });
+
+  router.post("/:id/resume/ab-run", (c) => {
+    const job = store.get(c.req.param("id"), tenantId(c));
+    if (!job) return c.json({ error: "Job not found" }, 404);
+    if (job.status !== "completed" || !job.blueprint) {
+      return c.json({ error: "The committee run must be completed with a blueprint first." }, 400);
+    }
+    if (job.abPhase && job.abPhase !== "done") {
+      return c.json({ error: "An A/B review is already running for this job." }, 409);
+    }
+    if (isResumeAbActive(job.id)) {
+      return c.json({ error: "An A/B review is already running for this job." }, 409);
+    }
+
+    job.abPhase = "v1";
+    job.updatedAt = new Date().toISOString();
+    store.update(job);
+    audit(c, "resume.ab_started", "success", "A/B review queued", job.id);
+
+    void queue.enqueue({
+      id: `ab:${job.id}`,
+      type: "resume_ab",
+      payload: { jobId: job.id },
+      tenantId: job.tenantId ?? "default",
+      attempts: 0,
+      maxAttempts: 2,
+    });
+    return c.json({ jobId: job.id, abPhase: job.abPhase }, 202);
+  });
+
+  // GET /api/jobs/:id/resume/versions - stored versions + comparison (tenant-scoped).
+  router.get("/:id/resume/versions", (c) => {
+    const job = store.get(c.req.param("id"), tenantId(c));
+    if (!job) return c.json({ error: "Job not found" }, 404);
+    const versions = store.listResumeVersions(job.id, tenantId(c));
+    return c.json({
+      versions,
+      comparison: job.comparison ?? null,
+      selectedVersion: job.selectedVersion ?? null,
+      abPhase: job.abPhase ?? null,
+    });
+  });
+
+  // POST /api/jobs/:id/resume/select - canonicalize the picked version.
+  router.post("/:id/resume/select", zValidator("json", resumeSelectSchema), (c) => {
+    const job = store.get(c.req.param("id"), tenantId(c));
+    if (!job) return c.json({ error: "Job not found" }, 404);
+    const body = c.req.valid("json");
+    if (job.abPhase !== "done") {
+      return c.json({ error: "The A/B review has not completed yet." }, 400);
+    }
+    const version = store.getResumeVersion(job.id, body.version, tenantId(c));
+    if (!version) return c.json({ error: "Resume version not found." }, 404);
+
+    job.rewrittenResume = version.markdown;
+    job.rewrittenResumeJson = version.templateJson;
+    if (version.metaJson) {
+      try {
+        job.resumeMeta = JSON.parse(version.metaJson) as JobState["resumeMeta"];
+      } catch {
+        /* keep the existing meta if the stored payload is malformed */
+      }
+    }
+    job.selectedVersion = body.version;
+    job.updatedAt = new Date().toISOString();
+    store.update(job);
+    writeDossier(job, config.exportsDir);
+    bus.publish({
+      type: "resume",
+      jobId: job.id,
+      rewrittenResume: job.rewrittenResume ?? "",
+      rewrittenResumeJson: job.rewrittenResumeJson,
+      resumeMeta: job.resumeMeta,
+    });
+    audit(c, "resume.selected", "success", `Version ${body.version} selected as canonical`, job.id, {
+      version: body.version,
+    });
+    return c.json(job);
+  });
+
   // GET /api/jobs/:id/stream — Server-Sent Events: live debate transcript
   router.get("/:id/stream", (c) => {
     const jobId = c.req.param("id");
     const job = store.get(jobId, tenantId(c));
     if (!job) return c.json({ error: "Job not found" }, 404);
 
-    const isActive = () =>
-      isRunActive(jobId) || job.status === "pending" || job.status === "debating";
+    // Committee runs are active while pending/debating; A/B reviews run AFTER
+    // the job is completed, so the cursor (abPhase) keeps the stream open
+    // until it finishes (design plan R2, D1). Re-read from the store so a run
+    // started after the stream opened still keeps it alive.
+    const isActive = () => {
+      if (isRunActive(jobId)) return true;
+      const current = store.get(jobId, tenantId(c));
+      if (!current) return false;
+      if (current.status === "pending" || current.status === "debating") return true;
+      return current.abPhase !== undefined && current.abPhase !== "done";
+    };
 
     return streamSSE(c, async (stream) => {
       // Snapshot: replay the current state so late subscribers catch up.

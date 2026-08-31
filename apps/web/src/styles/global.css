@@ -1864,6 +1864,30 @@ select:focus {
   min-height: 120px;
 }
 
+.ab-totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.ab-total {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ab-deltas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.ab-issues {
+  margin-top: 8px;
+}
+
 .interview-plan h3 {
   margin: 0 0 4px;
 }

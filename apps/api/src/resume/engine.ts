@@ -229,11 +229,19 @@ function buildUserPrompt(
  * view. Grounding rule: the candidate stays "as-is" — nothing is invented, and
  * unprovable requests surface as [ADD: ...] placeholders.
  */
+export interface ResumeEngineOptions {
+  /** Start the rewrite from this template instead of the base-resume pre-merge (A/B v2 pass). */
+  sourceTemplateOverride?: ResumeTemplate;
+  /** Extra directives appended to the system prompt (A/B eval findings). */
+  rewriteDirectives?: string;
+}
+
 export async function generateSophisticatedResume(
   job: JobState,
   blueprint: Blueprint,
   llm: LLMClient,
   profile?: UserProfile,
+  options?: ResumeEngineOptions,
 ): Promise<SophisticatedResumeResult> {
   const roleSlug =
     (job.roleSlug && getTemplate(job.roleSlug) ? job.roleSlug : undefined) ??
@@ -244,10 +252,13 @@ export async function generateSophisticatedResume(
 
   // V1-style pre-merge: populate the template from the source so the model
   // REWRITES it instead of copying (fixes the "identical to input" output).
-  const merged = mergeSourceIntoTemplate(template, job.baseResume);
-  const preMergedTemplate = profile
-    ? applyProfileToTemplate(merged.template, profile)
-    : merged.template;
+  // The A/B second pass starts from the v1 template instead (design plan R2).
+  const preMergedTemplate =
+    options?.sourceTemplateOverride ??
+    (() => {
+      const merged = mergeSourceIntoTemplate(template, job.baseResume);
+      return profile ? applyProfileToTemplate(merged.template, profile) : merged.template;
+    })();
 
   // US/UK English variant comes from the job's location (explicit field first,
   // then JD markers, then US default). It drives spelling + terminology.
@@ -284,6 +295,12 @@ export async function generateSophisticatedResume(
         "Honor these instructions where they are defensible and honest. Do not fabricate experience to satisfy them -- use [ADD: ...] placeholders for unverifiable claims.",
       ].join("\n")
     : "";
+  const abDirective = options?.rewriteDirectives
+    ? [
+        "## SECOND-PASS REVIEW DIRECTIVES (A/B evaluation findings)",
+        options.rewriteDirectives,
+      ].join("\n")
+    : "";
   const baseSystemPrompt = [
     coreDirective,
     rolePrompt,
@@ -294,6 +311,7 @@ export async function generateSophisticatedResume(
     screeningDirective,
     divergenceDirective,
     amendmentSection,
+    abDirective,
   ]
     .filter(Boolean)
     .join("\n\n");

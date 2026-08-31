@@ -279,6 +279,46 @@ async function main() {
       check("generated resume persisted on the job", Boolean(afterGen.rewrittenResume));
       check("US-located job produced US English resume", afterGen.resumeMeta?.locale === "us", `locale=${afterGen.resumeMeta?.locale}`);
 
+      // Resume A/B review (design plan R2): v1 -> eval -> v2 -> eval -> comparison -> select
+      const abRun = await fetch(`${base}/api/jobs/${created.id}/resume/ab-run`, { method: "POST" });
+      check("POST /api/jobs/:id/resume/ab-run returns 202", abRun.status === 202, `got ${abRun.status}`);
+      interface AbVersions {
+        versions: Array<{ version: number; markdown: string; evaluationJson?: string }>;
+        comparison: { recommendation: string; v1Total: number; v2Total: number } | null;
+        selectedVersion: number | null;
+        abPhase: string | null;
+      }
+      let abState: AbVersions | null = null;
+      {
+        const deadline = Date.now() + 45_000;
+        while (Date.now() < deadline) {
+          const raw = await (await fetch(`${base}/api/jobs/${created.id}/resume/versions`)).json();
+          const state = raw as AbVersions;
+          if (state.abPhase === "done") {
+            abState = state;
+            break;
+          }
+          await new Promise((r) => setTimeout(r, 300));
+        }
+      }
+      check(
+        "A/B review produced two evaluated versions + comparison",
+        abState !== null && abState.versions.length === 2 && abState.comparison !== null,
+        abState ? `versions=${abState.versions.length}` : "timeout",
+      );
+      check(
+        "A/B comparison carries numeric totals",
+        abState?.comparison !== null && typeof abState?.comparison?.v1Total === "number",
+      );
+      const abSelect = await fetch(`${base}/api/jobs/${created.id}/resume/select`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ version: 2 }),
+      });
+      check("POST /api/jobs/:id/resume/select returns 200", abSelect.status === 200, `got ${abSelect.status}`);
+      const selected = (await abSelect.json()) as JobState;
+      check("selected version is canonical", selected.selectedVersion === 2 && Boolean(selected.rewrittenResume));
+
       const listRes = (await (await fetch(`${base}/api/jobs`)).json()) as { jobs: JobState[] };
       check("GET /api/jobs lists the evaluation", listRes.jobs.length >= 1, `count=${listRes.jobs.length}`);
 

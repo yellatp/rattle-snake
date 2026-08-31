@@ -1,4 +1,4 @@
-export type JobType = "committee" | "generate";
+export type JobType = "committee" | "generate" | "resume_ab";
 
 export interface QueueJob {
   id: string;

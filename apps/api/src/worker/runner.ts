@@ -5,6 +5,7 @@ import type { LLMClient } from "../llm/client.js";
 import type { Queue, QueueHandler, QueueJob } from "../queue/types.js";
 import { runCommittee } from "../committee/runner.js";
 import { runGenerateChain } from "../committee/generateChain.js";
+import { runResumeAb } from "../committee/resumeAb.js";
 export interface WorkerContext {
   store: JobStore;
   llm: LLMClient;
@@ -110,6 +111,11 @@ export function createDefaultWorker(queue: Queue, ctx: WorkerContext): Worker {
       throw new Error("Job not found or no generate options set");
     }
     await runGenerateChain(jobId, ctx.store, ctx.llm, storeJob.generate, ctx.bus);
+  });
+
+  worker.register("resume_ab", async (job) => {
+    const jobId = job.payload.jobId as string;
+    await runResumeAb(jobId, ctx.store, ctx.llm, ctx.bus);
   });
 
   return worker;

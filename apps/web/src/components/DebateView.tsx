@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { marked } from "marked";
 import type {
   AuthenticityFlag,
@@ -14,12 +14,22 @@ import type {
   JdMeta,
   JobDecomposition,
   JobState,
+  ResumeComparison,
   ResumeMeta,
   SmeAnalysis,
   SmeFactorScore,
   TranscriptEntry,
 } from "@rattlesnake/shared";
-import { cancelJob, getJob, streamUrl, updateJobResume } from "../lib/api";
+import {
+  cancelJob,
+  getJob,
+  getResumeVersions,
+  selectResumeVersion,
+  startResumeAb,
+  streamUrl,
+  updateJobResume,
+  type ResumeVersionsResponse,
+} from "../lib/api";
 import { sanitizeMarkdownHtml } from "../lib/sanitize";
 import ErrorBoundary from "./ErrorBoundary";
 import ColdEmailPanel from "./ColdEmailPanel";
@@ -138,6 +148,7 @@ function DebateViewInner({ jobId, initialJob = null }: Props) {
   const [connected, setConnected] = useState(false);
   const [liveError, setLiveError] = useState<string | null>(null);
   const [tallies, setTallies] = useState<Record<string, number> | null>(null);
+  const [abV2, setAbV2] = useState<{ markdown: string; templateJson: string } | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [stalled, setStalled] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -321,6 +332,21 @@ function DebateViewInner({ jobId, initialJob = null }: Props) {
       if (!data) return;
       patch({ interviewPlan: data.plan });
     });
+    es.addEventListener("resumeEval", (e) => {
+      const data = sseData<{ version: 1 | 2 }>(e);
+      if (!data) return;
+      patch({ abPhase: data.version === 1 ? "eval1" : "comparison" });
+    });
+    es.addEventListener("resumeVariant", (e) => {
+      const data = sseData<{ markdown: string; templateJson: string }>(e);
+      if (!data) return;
+      setAbV2({ markdown: data.markdown, templateJson: data.templateJson });
+    });
+    es.addEventListener("resumeComparison", (e) => {
+      const data = sseData<{ comparison: ResumeComparison }>(e);
+      if (!data) return;
+      patch({ comparison: data.comparison, abPhase: "done" });
+    });
     es.addEventListener("done", (e) => {
       const data = sseData<{ job: JobState }>(e);
       if (!data) return;
@@ -415,11 +441,11 @@ function DebateViewInner({ jobId, initialJob = null }: Props) {
             <StatusPill status={job.status} connected={connected} />
           </div>
           <p className="hint mono">
-            {job.id} · sector focus: {job.sectorFocus ?? "template default"}
-            {job.roleSlug && <> · role: <span className="tag">{job.roleSlug}</span></>}
+            {job.id} Â· sector focus: {job.sectorFocus ?? "template default"}
+            {job.roleSlug && <> Â· role: <span className="tag">{job.roleSlug}</span></>}
             {job.llmUsed && (
               <>
-                {" · "}
+                {" Â· "}
                 ran on <span className="tag">{job.llmUsed.provider}</span>{" "}
                 <span className="mono">{job.llmUsed.model}</span>
               </>
@@ -538,6 +564,10 @@ function DebateViewInner({ jobId, initialJob = null }: Props) {
           jobId={job.id}
           onSaved={patch}
         />
+      )}
+
+      {job.status === "completed" && job.blueprint && (
+        <ResumeAbSection jobId={job.id} job={job} onPatch={patch} v2Preview={abV2} />
       )}
 
       <ColdEmailPanel jobId={job.id} initialDraft={job.coldEmailDraft} />
@@ -677,7 +707,7 @@ function RunMonitor({
           <h2>Run monitor</h2>
           <p className="hint">
             {connected ? "Live stream connected" : "Live stream disconnected"}
-            {live ? "" : " · run finished"}
+            {live ? "" : " Â· run finished"}
           </p>
         </div>
         {live && (
@@ -703,7 +733,7 @@ function RunMonitor({
         </p>
       )}
       <p className="run-progress hint">
-        Seats analyzed: {job.analyses?.length ?? 0} · Transcript entries:{" "}
+        Seats analyzed: {job.analyses?.length ?? 0} Â· Transcript entries:{" "}
         {job.transcript.length}
       </p>
     </section>
@@ -783,7 +813,7 @@ function JobDecompositionCard({ decomposition }: { decomposition: JobDecompositi
             {decomposition.businessProblems.map((p, i) => (
               <li key={i}>
                 {p.problem}
-                {p.detail && <span className="hint"> · {p.detail}</span>}
+                {p.detail && <span className="hint"> Â· {p.detail}</span>}
               </li>
             ))}
           </ul>
@@ -1047,7 +1077,7 @@ function RejectionBreakdown({
             {(analysis.concerns ?? []).length > 0 && (
               <p className="sme-reason">
                 <span className="tag warn">concerns</span>{" "}
-                <span className="hint">{(analysis.concerns ?? []).join(" · ")}</span>
+                <span className="hint">{(analysis.concerns ?? []).join(" Â· ")}</span>
               </p>
             )}
             <p className="sme-reason">
@@ -1445,7 +1475,7 @@ function RewrittenResume({
           className={`tab ${tab === "json" ? "active" : ""}`}
           onClick={() => setTab("json")}
         >
-          JSON {resumeJson ? "· edit" : ""}
+          JSON {resumeJson ? "Â· edit" : ""}
         </button>
       </div>
 
@@ -1521,3 +1551,197 @@ export default function DebateView(props: Props) {
     </ErrorBoundary>
   );
 }
+
+/** A/B review: second expert pass, side-by-side comparison, user pick (design plan R2). */
+function ResumeAbSection({
+  jobId,
+  job,
+  onPatch,
+  v2Preview,
+}: {
+  jobId: string;
+  job: JobState;
+  onPatch: (patch: Partial<JobState>) => void;
+  v2Preview: { markdown: string; templateJson: string } | null;
+}) {
+  const [starting, setStarting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [data, setData] = useState<ResumeVersionsResponse | null>(null);
+  const [picking, setPicking] = useState<1 | 2 | null>(null);
+  const [showV2, setShowV2] = useState(false);
+
+  const phase = job.abPhase;
+  const inFlight = phase !== undefined && phase !== "done";
+  const comparison = job.comparison ?? data?.comparison ?? null;
+  const selectedVersion = job.selectedVersion ?? data?.selectedVersion ?? null;
+
+  useEffect(() => {
+    if (!inFlight && (phase === "done" || job.comparison)) {
+      let alive = true;
+      getResumeVersions(jobId)
+        .then((d) => {
+          if (alive) setData(d);
+        })
+        .catch(() => {});
+      return () => {
+        alive = false;
+      };
+    }
+  }, [jobId, phase, job.comparison, inFlight]);
+
+  async function start() {
+    setStarting(true);
+    setError(null);
+    try {
+      const res = await startResumeAb(jobId);
+      onPatch({ abPhase: res.abPhase as JobState["abPhase"] });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setStarting(false);
+    }
+  }
+
+  async function pick(version: 1 | 2) {
+    setPicking(version);
+    setError(null);
+    try {
+      const updated = await selectResumeVersion(jobId, version);
+      onPatch({
+        rewrittenResume: updated.rewrittenResume,
+        rewrittenResumeJson: updated.rewrittenResumeJson,
+        resumeMeta: updated.resumeMeta,
+        selectedVersion: updated.selectedVersion,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPicking(null);
+    }
+  }
+
+  const phaseLabels: Record<string, string> = {
+    v1: "writing version 1",
+    eval1: "reviewing version 1",
+    v2: "writing version 2",
+    eval2: "reviewing version 2",
+    comparison: "comparing versions",
+  };
+
+  const versions = data?.versions ?? [];
+  const v2Markdown =
+    v2Preview?.markdown ?? versions.find((v) => v.version === 2)?.markdown;
+  const v2Issues = (() => {
+    const raw = versions.find((v) => v.version === 2)?.evaluationJson;
+    if (!raw) return null;
+    try {
+      const parsed = JSON.parse(raw) as {
+        issues?: Array<{ severity: string; section: string; finding: string }>;
+      };
+      return parsed.issues ?? null;
+    } catch {
+      return null;
+    }
+  })();
+
+  return (
+    <section className="panel">
+      <div className="panel-head">
+        <h2>Resume A/B review</h2>
+        {selectedVersion && <span className="tag">v{selectedVersion} selected</span>}
+      </div>
+      <div className="panel-body">
+        {!phase && !comparison && (
+          <>
+            <p className="hint">
+              A second expert pass rewrites the current resume, both versions are scored
+              against the same job description by a three-reviewer panel, and you pick
+              the winner. Runs about seven model calls.
+            </p>
+            <button type="button" className="btn" onClick={() => void start()} disabled={starting}>
+              {starting ? "Starting..." : "Run A/B review"}
+            </button>
+          </>
+        )}
+        {inFlight && (
+          <p className="hint">A/B review in progress: {phaseLabels[phase] ?? phase}...</p>
+        )}
+        {error && <div className="error-banner">{error}</div>}
+        {comparison && (
+          <div className="ab-comparison">
+            <div className="ab-totals">
+              <div className="ab-total">
+                <span className="tag">Version 1</span> <strong>{comparison.v1Total}</strong>
+                {selectedVersion === 1 && <span className="hint"> (in use)</span>}
+              </div>
+              <div className="ab-total">
+                <span className="tag">Version 2</span> <strong>{comparison.v2Total}</strong>
+                {selectedVersion === 2 && <span className="hint"> (in use)</span>}
+              </div>
+              <div className="ab-total">
+                <span className="tag">Recommendation</span>{" "}
+                <strong>{comparison.recommendation}</strong>
+              </div>
+            </div>
+            <p className="hint">{comparison.rationale}</p>
+            <div className="ab-deltas">
+              {Object.entries(comparison.dimensionDeltas).map(([dim, delta]) => (
+                <span key={dim} className="hint">
+                  {dim}: {delta > 0 ? `+${delta}` : delta}{" "}
+                </span>
+              ))}
+            </div>
+            <div className="form-actions">
+              <button
+                type="button"
+                className="btn"
+                onClick={() => void pick(2)}
+                disabled={picking !== null || selectedVersion === 2}
+              >
+                {picking === 2 ? "Switching..." : "Use version 2"}
+              </button>
+              <button
+                type="button"
+                className="btn secondary"
+                onClick={() => void pick(1)}
+                disabled={picking !== null || selectedVersion === 1}
+              >
+                {picking === 1 ? "Switching..." : "Use version 1"}
+              </button>
+            </div>
+            {v2Markdown && (
+              <>
+                <button
+                  type="button"
+                  className="btn secondary small"
+                  onClick={() => setShowV2((v) => !v)}
+                  aria-expanded={showV2}
+                >
+                  {showV2 ? "Hide version 2" : "Show version 2"}
+                </button>
+                {showV2 && (
+                  <pre className="ce-body" style={{ marginTop: "0.5rem" }}>
+                    {v2Markdown}
+                  </pre>
+                )}
+              </>
+            )}
+            {v2Issues && v2Issues.length > 0 && (
+              <div className="ab-issues">
+                {v2Issues.map((issue, i) => (
+                  <p key={i} className="hint">
+                    <strong>
+                      [{issue.severity}] {issue.section}:
+                    </strong>{" "}
+                    {issue.finding}
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+

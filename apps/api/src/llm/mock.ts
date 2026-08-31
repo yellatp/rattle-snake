@@ -446,6 +446,42 @@ export function mockResponseFor(system: string, _user: string): string {
       needsHumanReview: false,
     });
   }
+  // Resume A/B reviewers (design plan R2): three seats, one rubric, distinct
+  // calibrated scores so the deterministic comparison has signal offline.
+  if (firstLine.includes("resume ats screener")) {
+    return JSON.stringify({
+      scores: { jdCoverage: 82, credibility: 75, clarity: 88, atsReadiness: 90 },
+      strengths: ["strong keyword alignment with the posting", "clean section structure"],
+      issues: [
+        { severity: "medium", section: "Skills", finding: "two JD keywords are missing", fixHint: "work them into existing bullets honestly" },
+      ],
+      verdict: "ship",
+    });
+  }
+  if (firstLine.includes("resume hiring manager")) {
+    return JSON.stringify({
+      scores: { jdCoverage: 78, credibility: 84, clarity: 85, atsReadiness: 80 },
+      strengths: ["evidence-backed bullets", "credible ownership claims"],
+      issues: [
+        { severity: "low", section: "Summary", finding: "summary could state the value proposition sooner", fixHint: "lead with the role fit" },
+      ],
+      verdict: "ship",
+    });
+  }
+  if (firstLine.includes("resume editor")) {
+    return JSON.stringify({
+      scores: { jdCoverage: 85, credibility: 80, clarity: 90, atsReadiness: 88 },
+      strengths: ["parallel bullet phrasing", "consistent typography"],
+      issues: [
+        { severity: "low", section: "Experience", finding: "one bullet buries the outcome", fixHint: "move the result to the front" },
+      ],
+      verdict: "ship",
+    });
+  }
+  if (firstLine.includes("resume ats screener")) {
+    // unreachable; kept for clarity of the branch family
+  }
+
   // Sophisticated resume engine: role-targeted resume-writer system prompt.
   if (firstLine.includes("senior resume writer")) {
     return MOCK_RESUME_JSON;

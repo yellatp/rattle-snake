@@ -409,6 +409,70 @@ describe("jobs API", () => {
     expect(res.status).toBe(400);
   });
 
+  it("resume A/B: ab-run -> versions -> select canonicalizes the picked version", async () => {
+    const created = await createJob(ctx.app, JD, RESUME);
+    await waitForCompletion(ctx.app, created.id!);
+    await ctx.app.request(`/api/jobs/${created.id}/resume/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+
+    const run = await ctx.app.request(`/api/jobs/${created.id}/resume/ab-run`, {
+      method: "POST",
+    });
+    expect(run.status).toBe(202);
+
+    // The cursor guard holds while the run is in flight (worker poll interval
+    // keeps the queue job pending long enough for this request).
+    const dup = await ctx.app.request(`/api/jobs/${created.id}/resume/ab-run`, {
+      method: "POST",
+    });
+    expect([202, 409]).toContain(dup.status);
+
+    let versionsBody: {
+      versions: Array<{ version: number; markdown: string; evaluationJson?: string }>;
+      comparison: { recommendation: string } | null;
+      selectedVersion: number | null;
+      abPhase: string | null;
+    } | null = null;
+    for (let i = 0; i < 200; i++) {
+      const res = await ctx.app.request(`/api/jobs/${created.id}/resume/versions`);
+      const body = (await res.json()) as NonNullable<typeof versionsBody>;
+      if (body.abPhase === "done") {
+        versionsBody = body;
+        break;
+      }
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    expect(versionsBody).not.toBeNull();
+    expect(versionsBody!.versions.length).toBe(2);
+    expect(versionsBody!.comparison).toBeTruthy();
+
+    const select = await ctx.app.request(`/api/jobs/${created.id}/resume/select`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ version: 2 }),
+    });
+    expect(select.status).toBe(200);
+    const updated = (await select.json()) as JobState;
+    expect(updated.selectedVersion).toBe(2);
+    expect(updated.rewrittenResumeJson).toBeTruthy();
+  });
+
+  it("resume A/B: ab-run 400s before completion", async () => {
+    const created = await createJob(ctx.app, JD, RESUME);
+    const job = ctx.store.get(created.id!)!;
+    job.status = "debating";
+    ctx.store.update(job);
+    const res = await ctx.app.request(`/api/jobs/${created.id}/resume/ab-run`, {
+      method: "POST",
+    });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error?: string };
+    expect(body.error).toContain("completed");
+  });
+
   it("POST /api/jobs/:id/cold-email returns a sanitized draft", async () => {
     const created = await createJob(ctx.app, JD, RESUME);
     await waitForCompletion(ctx.app, created.id!);

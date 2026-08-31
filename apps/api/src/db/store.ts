@@ -51,6 +51,9 @@ interface JobRow {
   transcript: string;
   gap_analysis: string | null;
   amendment_notes: string | null;
+  ab_phase: string | null;
+  comparison: string | null;
+  selected_version: number | null;
   jd_meta: string | null;
   job_decomposition: string | null;
   analyses: string | null;
@@ -96,6 +99,43 @@ interface WebhookRow {
   is_active: number;
   created_at: string;
   updated_at: string;
+}
+
+interface ResumeVersionRow {
+  id: string;
+  job_id: string;
+  tenant_id: string | null;
+  version: number;
+  template_json: string;
+  markdown: string;
+  meta_json: string | null;
+  evaluation_json: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ResumeVersion {
+  jobId: string;
+  version: 1 | 2;
+  templateJson: string;
+  markdown: string;
+  metaJson?: string;
+  evaluationJson?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+function resumeVersionFromRow(row: ResumeVersionRow): ResumeVersion {
+  return {
+    jobId: row.job_id,
+    version: row.version as 1 | 2,
+    templateJson: row.template_json,
+    markdown: row.markdown,
+    metaJson: row.meta_json ?? undefined,
+    evaluationJson: row.evaluation_json ?? undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
 }
 
 function parseJSON<T>(raw: string | null): T | undefined {
@@ -177,6 +217,9 @@ export class JobStore {
         interview_plan TEXT,
         gap_analysis TEXT,
         amendment_notes TEXT,
+        ab_phase TEXT,
+        comparison TEXT,
+        selected_version INTEGER,
         phase TEXT,
         activity TEXT,
         status TEXT NOT NULL,
@@ -240,6 +283,18 @@ export class JobStore {
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS resume_versions (
+        id TEXT PRIMARY KEY,
+        job_id TEXT NOT NULL,
+        tenant_id TEXT,
+        version INTEGER NOT NULL,
+        template_json TEXT NOT NULL,
+        markdown TEXT NOT NULL,
+        meta_json TEXT,
+        evaluation_json TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
       CREATE TABLE IF NOT EXISTS meta (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
@@ -249,6 +304,7 @@ export class JobStore {
       CREATE INDEX IF NOT EXISTS idx_jobs_created ON jobs(created_at);
       CREATE INDEX IF NOT EXISTS idx_profiles_master ON profiles(is_master);
       CREATE INDEX IF NOT EXISTS idx_webhooks_tenant ON webhooks(tenant_id);
+      CREATE INDEX IF NOT EXISTS idx_resume_versions_job ON resume_versions(job_id, version);
     `);
     // Migration for DBs created before the bring-your-own-LLM feature.
     // SQLite has no "ADD COLUMN IF NOT EXISTS", so ignore the duplicate error.
@@ -386,9 +442,25 @@ export class JobStore {
     } catch {
       /* column already exists */
     }
+    // Migration for DBs created before the resume A/B feature (design plan R2).
+    try {
+      this.db.exec(`ALTER TABLE jobs ADD COLUMN ab_phase TEXT`);
+    } catch {
+      /* column already exists */
+    }
+    try {
+      this.db.exec(`ALTER TABLE jobs ADD COLUMN comparison TEXT`);
+    } catch {
+      /* column already exists */
+    }
+    try {
+      this.db.exec(`ALTER TABLE jobs ADD COLUMN selected_version INTEGER`);
+    } catch {
+      /* column already exists */
+    }
     // Webhooks table is created by CREATE TABLE IF NOT EXISTS above; no ALTER needed.
     // Marker for the migration set applied to this database file.
-    this.db.pragma("user_version = 3");
+    this.db.pragma("user_version = 4");
     // Migrate the legacy single-row profile into a master profile on first open
     // so existing data is preserved when the new profiles table is empty.
     this.migrateLegacyProfile();
@@ -416,12 +488,12 @@ export class JobStore {
       .prepare(
          `INSERT INTO jobs
           (id, tenant_id, domain, role_slug, job_description, base_resume, sector_focus, job_location, profile_id,
-           transcript, gap_analysis, amendment_notes,
+           transcript, gap_analysis, amendment_notes, ab_phase, comparison, selected_version,
            jd_meta, job_decomposition, analyses, final_verdict, blueprint, executive_review,
             rewritten_resume, rewritten_resume_json,
             resume_meta, generate, cold_email_draft, cover_letter_draft, interview_plan, llm_used, phase, activity, status, error, created_at, updated_at)
          VALUES (@id, @tenantId, @domain, @roleSlug, @jobDescription, @baseResume, @sectorFocus, @jobLocation, @profileId,
-           @transcript, @gapAnalysis, @amendmentNotes,
+           @transcript, @gapAnalysis, @amendmentNotes, @abPhase, @comparison, @selectedVersion,
            @jdMeta, @jobDecomposition, @analyses, @finalVerdict, @blueprint, @executiveReview,
            @rewrittenResume, @rewrittenResumeJson,
            @resumeMeta, @generate, @coldEmailDraft, @coverLetterDraft, @interviewPlan, @llmUsed, @phase, @activity, @status, @error, @createdAt, @updatedAt)`,
@@ -515,6 +587,9 @@ export class JobStore {
            transcript = @transcript,
            gap_analysis = @gapAnalysis,
            amendment_notes = @amendmentNotes,
+           ab_phase = @abPhase,
+           comparison = @comparison,
+           selected_version = @selectedVersion,
            jd_meta = @jdMeta,
            job_decomposition = @jobDecomposition,
            analyses = @analyses,
@@ -1131,6 +1206,78 @@ export class JobStore {
     this.db.close();
   }
 
+  // --- Resume versions (A/B review, design plan R2) ---------------------------
+
+  saveResumeVersion(input: {
+    jobId: string;
+    tenantId?: string;
+    version: 1 | 2;
+    templateJson: string;
+    markdown: string;
+    metaJson?: string;
+    evaluationJson?: string;
+  }): void {
+    const now = new Date().toISOString();
+    const id = `${input.jobId}-v${input.version}`;
+    this.db
+      .prepare(
+        `INSERT INTO resume_versions
+           (id, job_id, tenant_id, version, template_json, markdown, meta_json, evaluation_json, created_at, updated_at)
+         VALUES (@id, @jobId, @tenantId, @version, @templateJson, @markdown, @metaJson, @evaluationJson, @createdAt, @updatedAt)
+         ON CONFLICT(id) DO UPDATE SET
+           template_json = excluded.template_json,
+           markdown = excluded.markdown,
+           meta_json = excluded.meta_json,
+           evaluation_json = excluded.evaluation_json,
+           updated_at = excluded.updated_at`,
+      )
+      .run({
+        id,
+        jobId: input.jobId,
+        tenantId: input.tenantId ?? null,
+        version: input.version,
+        templateJson: input.templateJson,
+        markdown: input.markdown,
+        metaJson: input.metaJson ?? null,
+        evaluationJson: input.evaluationJson ?? null,
+        createdAt: now,
+        updatedAt: now,
+      });
+  }
+
+  setResumeEvaluation(jobId: string, version: 1 | 2, evaluationJson: string): void {
+    this.db
+      .prepare("UPDATE resume_versions SET evaluation_json = @evaluation, updated_at = @updatedAt WHERE id = @id")
+      .run({
+        evaluation: evaluationJson,
+        updatedAt: new Date().toISOString(),
+        id: `${jobId}-v${version}`,
+      });
+  }
+
+  getResumeVersion(jobId: string, version: 1 | 2, tenantId?: string): ResumeVersion | null {
+    const rows = tenantId
+      ? (this.db
+          .prepare("SELECT * FROM resume_versions WHERE job_id = @jobId AND version = @version AND (tenant_id = @tenantId OR tenant_id IS NULL)")
+          .all({ jobId, version, tenantId }) as ResumeVersionRow[])
+      : (this.db
+          .prepare("SELECT * FROM resume_versions WHERE job_id = @jobId AND version = @version")
+          .all({ jobId, version }) as ResumeVersionRow[]);
+    const row = rows[0];
+    return row ? resumeVersionFromRow(row) : null;
+  }
+
+  listResumeVersions(jobId: string, tenantId?: string): ResumeVersion[] {
+    const rows = tenantId
+      ? (this.db
+          .prepare("SELECT * FROM resume_versions WHERE job_id = @jobId AND (tenant_id = @tenantId OR tenant_id IS NULL) ORDER BY version ASC")
+          .all({ jobId, tenantId }) as ResumeVersionRow[])
+      : (this.db
+          .prepare("SELECT * FROM resume_versions WHERE job_id = @jobId ORDER BY version ASC")
+          .all({ jobId }) as ResumeVersionRow[]);
+    return rows.map(resumeVersionFromRow);
+  }
+
   /** Cheap liveness probe for load balancers and orchestrators. */
   healthCheck(): boolean {
     try {
@@ -1321,6 +1468,9 @@ function rowFromJob(job: JobState): Record<string, unknown> {
     transcript: JSON.stringify(job.transcript),
     gapAnalysis: job.gapAnalysis ? JSON.stringify(job.gapAnalysis) : null,
     amendmentNotes: job.amendmentNotes ?? null,
+    abPhase: job.abPhase ?? null,
+    comparison: job.comparison ? JSON.stringify(job.comparison) : null,
+    selectedVersion: job.selectedVersion ?? null,
     jdMeta: job.jdMeta ? JSON.stringify(job.jdMeta) : null,
     jobDecomposition: job.jobDecomposition ? JSON.stringify(job.jobDecomposition) : null,
     analyses: job.analyses ? JSON.stringify(job.analyses) : null,
@@ -1375,6 +1525,9 @@ function jobFromRow(row: JobRow): JobState {
     transcript: requireJSON<TranscriptEntry[]>(row.transcript, []),
     gapAnalysis: parseJSON<JobState["gapAnalysis"]>(row.gap_analysis),
     amendmentNotes: row.amendment_notes ?? undefined,
+    abPhase: (row.ab_phase as JobState["abPhase"]) ?? undefined,
+    comparison: parseJSON<JobState["comparison"]>(row.comparison),
+    selectedVersion: (row.selected_version as JobState["selectedVersion"]) ?? undefined,
     jdMeta: parseJSON<JdMeta>(row.jd_meta),
     jobDecomposition: parseJSON<JobState["jobDecomposition"]>(row.job_decomposition),
     analyses: parseJSON<SmeAnalysis[]>(row.analyses),

@@ -308,6 +308,50 @@ export const coldEmailV2Schema = z.object({
   wordCount: z.number().int().min(0),
 });
 
+/** One reviewer seat's structured verdict on a resume version. */
+export const resumeEvaluationSchema = z.object({
+  scores: z.object({
+    jdCoverage: z.number().min(0).max(100),
+    credibility: z.number().min(0).max(100),
+    clarity: z.number().min(0).max(100),
+    atsReadiness: z.number().min(0).max(100),
+  }),
+  strengths: z.array(z.string().min(1)).max(10),
+  issues: z
+    .array(
+      z.object({
+        severity: z.enum(["high", "medium", "low"]),
+        section: z.string().min(1),
+        finding: z.string().min(1),
+        fixHint: z.string().min(1),
+      }),
+    )
+    .max(12),
+  verdict: z.enum(["ship", "revise"]),
+});
+
+export type ResumeEvaluationInput = z.infer<typeof resumeEvaluationSchema>;
+
+export const resumeAbPhaseSchema = z.enum([
+  "v1",
+  "eval1",
+  "v2",
+  "eval2",
+  "comparison",
+  "done",
+]);
+
+/** Deterministic comparison produced in code, never by an LLM. */
+export const resumeComparisonSchema = z.object({
+  v1Total: z.number().min(0).max(100),
+  v2Total: z.number().min(0).max(100),
+  dimensionDeltas: z.record(z.string(), z.number()),
+  recommendation: z.enum(["v1", "v2", "tie"]),
+  rationale: z.string().min(1),
+});
+
+export type ResumeComparisonInput = z.infer<typeof resumeComparisonSchema>;
+
 /** Cover-letter draft generated for one application. */
 export const coverLetterSchema = z.object({
   subject: z.string().min(1),

@@ -1,6 +1,7 @@
 import type {
   Blueprint,
   ColdEmailAudience,
+  ResumeComparison,
   ColdEmailDraft,
   CoverLetterDraft,
   EnhancementTier,
@@ -182,6 +183,48 @@ export function generateColdEmail(
   return request<ColdEmailDraft>(`/api/jobs/${jobId}/cold-email`, {
     method: "POST",
     body: JSON.stringify(input),
+  });
+}
+
+// --- Resume A/B review -------------------------------------------------------------
+
+export interface ResumeVersionInfo {
+  jobId: string;
+  version: 1 | 2;
+  templateJson: string;
+  markdown: string;
+  metaJson?: string;
+  evaluationJson?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ResumeVersionsResponse {
+  versions: ResumeVersionInfo[];
+  comparison: ResumeComparison | null;
+  selectedVersion: 1 | 2 | null;
+  abPhase: string | null;
+}
+
+export function startResumeAb(
+  jobId: string,
+): Promise<{ jobId: string; abPhase: string }> {
+  return request<{ jobId: string; abPhase: string }>(
+    `/api/jobs/${encodeURIComponent(jobId)}/resume/ab-run`,
+    { method: "POST", body: JSON.stringify({}) },
+  );
+}
+
+export function getResumeVersions(jobId: string): Promise<ResumeVersionsResponse> {
+  return request<ResumeVersionsResponse>(
+    `/api/jobs/${encodeURIComponent(jobId)}/resume/versions`,
+  );
+}
+
+export function selectResumeVersion(jobId: string, version: 1 | 2): Promise<JobState> {
+  return request<JobState>(`/api/jobs/${encodeURIComponent(jobId)}/resume/select`, {
+    method: "POST",
+    body: JSON.stringify({ version }),
   });
 }
 
