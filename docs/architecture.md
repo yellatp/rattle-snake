@@ -1,6 +1,6 @@
 ﻿# Rattle-Snake V2 — Architecture
 
-> **Last updated:** 2026-08-29 - Technical spec behind `docs/PRD.md`. Implementation status per requirement: `docs/feature-tracker.md`. End-to-end walkthrough: `docs/how-it-works.md`. Covers the v2.0 systems upgrade (queue/worker, event bus, webhooks, audit log, security middleware, tenant isolation) in section 14.
+> **Last updated:** 2026-08-31 - Technical spec behind `docs/PRD.md`. Implementation status per requirement: `docs/feature-tracker.md`. End-to-end walkthrough: `docs/how-it-works.md`. Covers the v2.0 systems upgrade (section 14) and the v2.1.0 additions: auth layer (`apps/api/src/auth/`, middleware unification, strict-tenant backfill) and the rattle-snake.envelope.v1 integration contract with the adapter registry (`apps/api/src/adapters/`).
 
 ---
 

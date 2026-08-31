@@ -1,6 +1,6 @@
 ﻿# Rattle-Snake V2 — Roadmap & Future Optimizations
 
-> **Last updated:** 2026-08-29 - P1 complete; P2 largely complete (queue/worker, exports, secure defaults); v2.1.0 designed and queued below. Companion: `docs/strategy.md`.
+> **Last updated:** 2026-08-31 - v2.1.0 shipped; next up: auto-fill extension + job-board aggregation. Companion: `docs/strategy.md`.
 
 ---
 
@@ -65,9 +65,9 @@
 
 ---
 
-## v2.1.0 - Content engine, A/B resumes, SaaS foundations (designed, implementation next)
+## v2.1.0 - Content engine, A/B resumes, SaaS foundations (SHIPPED 2026-08-31)
 
-Design is locked (see the repository design plan). Phases land independently with the full gate green at each merge:
+All five phases shipped (c57b9c6, 2cb2374, cf2e08d, 6828fdb, f24c5ed) with the full gate green at each merge:
 
 | Phase | Scope |
 |---|---|

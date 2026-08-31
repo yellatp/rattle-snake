@@ -1,7 +1,7 @@
 ﻿# Rattle-Snake V2 — Feature Tracker
 
 > **Purpose:** a single source of truth mapping **every PRD requirement** → implementation **status** → **code references** so completion can be verified by inspection, not just asserted.
-> **Last updated:** 2026-08-29 (v2.0 systems upgrade + security hardening + performance pass; WS-14/15/16 below) - IDs below match `docs/PRD.md`. Status legend:
+> **Last updated:** 2026-08-31 (v2.1.0 shipped: cold-email engine, resume A/B, UI workspace polish, auth, envelope/adapters - WS-17/18 below) - IDs below match `docs/PRD.md`. Status legend:
 > - ✅ **Implemented** — code exists, builds, and was exercised (reference(s) below).
 > - 🟡 **Implemented, needs verification** — code exists but not yet validated against a real LLM / not yet tested.
 > - ⏳ **Planned** — scheduled in a sprint (see `docs/strategy.md`).
@@ -169,3 +169,26 @@ Statuses: Done. implemented & tested (unit suite now **269+ tests**: api 246 + w
 | WS-16.4 | Candidate profile cap (7 per tenant) | Done. | `db/store.ts MAX_PROFILES_PER_TENANT`; settings route returns 400 with clear message | settings route tests |
 | WS-16.5 | SQLite hardening: indexes, schema version, transactions | Done. | `db/store.ts` (idx_jobs_*, idx_profiles_master, idx_webhooks_tenant; `user_version = 3`; transactional multi-step ops) | api suite |
 | WS-16.6 | CI pipeline enforcing the full gate | Done. | `.github/workflows/ci.yml` (shared build, tsc, vitest, astro check, e2e, smoke on ubuntu) | workflow file; first run pending remote push |
+## 14. WS-17 - v2.1.0 content engine + resume A/B + UI workspace
+
+Statuses: Done. implemented & tested (suite 286 api + 23 web; e2e covers A/B + cold-email v2 + auth flows offline).
+
+| ID | Feature | Status | Implementation reference | Verified by |
+|---|---|---|---|---|
+| WS-17.1 | Cold-email content engine v2: first-person voice, selection-driven narrative (audience/tone/angle/length/ask), deterministic voice gate with one corrective regeneration then first-person fallback | Done. | `packages/shared/src/prompts.ts` (`buildColdEmailV2Prompt`), `apps/api/src/outreach/coldEmail.ts`, voice gate `outreach/coldEmailGate.ts`; composer `apps/web/src/components/ColdEmailPanel.tsx` | `coldEmail.test.ts` (6) + `coldEmailGate.test.ts` (9) |
+| WS-17.2 | Resume A/B review: v1 reuse, 3-reviewer panel (verdict-blind, same rubric), v2 second pass seeded from v1 + findings with the moderator gate unchanged, deterministic comparison (weights 0.35/0.30/0.20/0.15, 3-point tie band), warn-only fabrication guard | Done. | `apps/api/src/committee/resumeAb.ts` (persisted `abPhase` cursor, idempotent retries), `resumeReview.ts`; engine hook `resume/engine.ts` (`sourceTemplateOverride` + `rewriteDirectives`) | `resumeAb.test.ts` (10 incl. weight locks + cursor resume) |
+| WS-17.3 | A/B API + SSE: POST /:id/resume/ab-run (202, 409 in-flight), GET versions, POST select (canonicalizes the pick); SSE resumeEval/resumeVariant/resumeComparison; stream stays open while `abPhase` runs | Done. | `apps/api/src/routes/jobs.ts`; stream handler re-reads `abPhase` per liveness pass | route tests (2) + e2e ab-run/versions/select checks |
+| WS-17.4 | `resume_versions` table + jobs ab_phase/comparison/selected_version columns (user_version = 4) | Done. | `apps/api/src/db/store.ts` (tenant-scoped CRUD, upsert by job+version) | resumeAb route tests |
+| WS-17.5 | UI: Resume A/B section (progress, totals, deltas, recommendation, pick buttons, v2 preview + reviewer findings), Export Center (all artifacts x md/txt/html/json/pdf/docx where applicable), stage strip with click-to-scroll anchors, breadcrumbs, nav rename (New Run / Runs / Profiles / Help), brand "Rattle Snake" without version strings | Done. | `DebateView.tsx` (`ResumeAbSection`, `StageStrip`), `ExportCenter.tsx`, `Layout.astro`, page headers | astro check, web tests, smoke (all routes 200/302) |
+| WS-17.6 | Automated UI copy gate (14.7): emojis, em/en dashes, smart quotes, marketing filler, version strings fail the build; wired as `check:copy` | Done. | `apps/web/scripts/check-copy.mjs` | `pnpm --filter @rattlesnake/web check:copy` green |
+
+## 15. WS-18 - v2.1.0 auth + plug-and-play envelope
+
+| ID | Feature | Status | Implementation reference | Verified by |
+|---|---|---|---|---|
+| WS-18.1 | User accounts: register (creates user + personal org + owner membership), login (IP-throttled 10/5min), logout, GET /api/auth/me; scrypt passwords (per-hash salt, versioned format) | Done. | `apps/api/src/auth/{routes,passwords}.ts` | `auth.test.ts` (10) |
+| WS-18.2 | Sessions: opaque 32-byte tokens, SHA-256 at rest, 30-day expiry, per-session CSRF token; double-submit CSRF on cookie-authenticated mutations (API-key clients exempt) | Done. | `apps/api/src/auth/sessions.ts`; CSRF in `middleware/security.ts` | auth API flow + CSRF tests |
+| WS-18.3 | Unified credential middleware: session OR API key resolves tenant context; `REQUIRE_AUTH` feature flag (default off - zero behavior change until enabled); REQUIRE_API_KEY strict path preserved when the flag is off; /api/auth/* + /health exempt | Done. | `apps/api/src/middleware/security.ts` (`authMiddleware`), `config.ts` auth flags | REQUIRE_AUTH on/off tests |
+| WS-18.4 | Strict tenant isolation when auth is on (D6): legacy NULL-tenant rows backfilled to the default workspace at boot; env API keys seeded hashed into `api_keys` | Done. | `store.backfillNullTenants`, `store.seedApiKey`, `store.ensureDefaultOrg`; boot in `app.ts` | strict-mode test (anonymous 401, session 200) |
+| WS-18.5 | `rattle-snake.envelope.v1` contract + adapter registry: InputAdapter/OutputAdapter interfaces; shipped UrlJdInputAdapter (HTML-stripping fetch) + WebhookOutputAdapter; webhook deliveries now carry envelope bodies with the same HMAC scheme | Done. | `packages/shared/src/envelope.ts`; `apps/api/src/adapters/{registry,builtIn}.ts`; `webhooks/dispatcher.ts` | `adapters.test.ts` (7 incl. signed-envelope shape) |
+| WS-18.6 | Web /login page (register + sign-in toggle) and conditional Sign-in nav link | Done. | `apps/web/src/pages/login.astro`, `components/LoginView.tsx`, `Layout.astro` | astro check, smoke |

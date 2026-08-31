@@ -1,4 +1,4 @@
-# Rattle-Snake V2
+﻿# Rattle-Snake V2
 
 A **self-hosted hiring committee**: five role-driven personas that evaluate one candidate against one job description. You paste a JD + resume (optionally attaching a saved candidate profile and pinning one of 32 role templates), and the system extracts structured **JD metadata** (company, role, sector, location, team), uses it to select the committee seats, and runs a live **SME panel**: every seat delivers a **360-degree scored analysis**, then the committee cross-talks and is forced to a non-neutral verdict, producing a **Hiring Committee Blueprint**. Resume generation is an **explicit, on-demand handoff** — you choose when and with which role template to run it, and the result is ATS re-scored, moderated, and streamed live to the browser. Every run links to a per-application **cold-email killer intro** and a **5-expert interview mock**.
 
@@ -127,7 +127,7 @@ pnpm debate -- --jd samples/fintech-jd.md --resume samples/candidate-resume.md `
 ## Tests & checks
 
 ```powershell
-pnpm test        # vitest: api 246 + web 23 + shared suite - pipeline stages, routes, webhooks, exports
+pnpm test        # vitest: api 286 + web 23 + shared suite - pipeline, A/B review, auth, webhooks, adapters, exports
 pnpm typecheck   # tsc + astro check (3/3)
 pnpm run build   # turbo build (3/3)
 pnpm e2e         # functional suite: all 3 provider wire formats over real HTTP + full API/SSE flow
@@ -247,18 +247,18 @@ samples/          # sample JD + resume + rewritten output
 
 ## Roadmap
 
-The next minor release (v2.1.0) is fully designed and queued; each phase lands independently with the whole gate green:
+v2.1.0 is shipped (all phases landed with the whole gate green; see docs/feature-tracker.md WS-17/18):
 
 - **Cold-email content engine** - first-person candidate voice, user-selected angle/tone/audience/length, narrative driven by committee insights, and a deterministic voice gate (no third-person drafts, no tech laundry lists).
 - **Resume A/B iteration** - generate v1, evaluate it against the same job description with a 3-reviewer panel, generate v2 that addresses the findings, score both versions fairly, show the side-by-side comparison, and let you pick the winner.
 - **SaaS foundations** - user accounts (users / orgs / sessions / roles with scrypt password hashing), a login page behind a feature flag for one release, and a versioned JSON envelope plus input/output adapter registry for plug-and-play integrations.
 - **UI** - one run workspace with a visible stage tracker, a resume comparison view, a single Export Center (PDF / DOCX / TXT / MD including the full expert discussion), and professional polish: simple vocabulary, no decorative artwork, pages that render smoothly even when the API is down.
 
-Full phase plan: [docs/roadmap.md](docs/roadmap.md). Longer-term: job application auto-fill (browser extension), job-board aggregation with committee-based match scoring, and an all-in-one application tracker.
+Full phase plan: [docs/roadmap.md](docs/roadmap.md). Up next (designed, not started): job application auto-fill (browser extension over the JSON envelope), job-board aggregation with committee-based match scoring, and an all-in-one application tracker.
 
 ## Project status
 
-Core pipeline **complete and verified end-to-end** (JD metadata, job decomposition, 360-degree SME analyses, debate, verdict, blueprint, explicit resume handoff, live SSE) with a **multi-provider LLM layer** (OpenAI, Anthropic, Google, DeepSeek, Kimi, Grok, GroQ, Qwen, Ollama, OpenRouter, and any OpenAI-compatible endpoint) plus V1 parity: 32-template library, multi-profile manager with master + PIN (up to 7 per account), PDF/DOCX/TXT/MD downloads. The **v2.0 systems upgrade** is in: async queue + worker execution (memory or Redis, at-least-once with crash recovery), an event bus with replay and Redis fan-out, HMAC-signed SSRF-guarded outbound webhooks, a structured audit log, tenant isolation on every table, and a security middleware chain (API-key auth with secure production defaults, rate limiting, body limits). Remaining production-readiness items - user accounts, real-LLM validation, Playwright e2e - are tracked in [docs/feature-tracker.md](docs/feature-tracker.md), [docs/sprint-tracker.md](docs/sprint-tracker.md) and [docs/roadmap.md](docs/roadmap.md).
+Core pipeline **complete and verified end-to-end** (JD metadata, job decomposition, 360-degree SME analyses, debate, verdict, blueprint, explicit resume handoff, live SSE) with a **multi-provider LLM layer** (OpenAI, Anthropic, Google, DeepSeek, Kimi, Grok, GroQ, Qwen, Ollama, OpenRouter, and any OpenAI-compatible endpoint) plus V1 parity: 32-template library, multi-profile manager with master + PIN (up to 7 per account), PDF/DOCX/TXT/MD downloads. The **v2.0 systems upgrade** is in: async queue + worker execution (memory or Redis, at-least-once with crash recovery), an event bus with replay and Redis fan-out, HMAC-signed SSRF-guarded outbound webhooks, a structured audit log, tenant isolation on every table, and a security middleware chain (API-key auth with secure production defaults, rate limiting, body limits). v2.1.0 adds: a first-person cold-email engine with a deterministic voice gate, a resume A/B review (three verdict-blind reviewers, deterministic comparison, you pick the winner), an Export Center for every artifact, user accounts with sessions and CSRF behind the REQUIRE_AUTH flag, and the rattle-snake.envelope.v1 integration contract with an adapter registry. Remaining production-readiness items - enabling REQUIRE_AUTH in production, real-LLM validation, Playwright e2e - are tracked in [docs/feature-tracker.md](docs/feature-tracker.md), [docs/sprint-tracker.md](docs/sprint-tracker.md) and [docs/roadmap.md](docs/roadmap.md).
 
 ## License
 

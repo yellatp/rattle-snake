@@ -196,3 +196,58 @@ resolve for jobs visible to the caller's tenant.
 
 - Up to **7 candidate profiles per tenant**; further creates return
   `400 { "error": "Profile limit reached: up to 7 profiles are allowed. Delete one to create another." }`.
+---
+
+## Auth (`/api/auth`) - `apps/api/src/auth/routes.ts`
+
+Session-based account auth (design plan R3). Enforcement is behind the
+`REQUIRE_AUTH` flag (default off - the endpoints exist but nothing is gated
+until enabled). Sessions are opaque tokens in the `rs_session` HttpOnly cookie
+(30-day expiry); mutations from a browser session additionally require the
+`X-CSRF-Token` header matching the `rs_csrf` cookie.
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/api/auth/register` | `{ email, password (min 8), name? }` -> 201, creates the account, a personal workspace (owner membership), and a session. 400 on duplicate email or invalid input. |
+| POST | `/api/auth/login` | `{ email, password }` -> 200 + session cookies. 401 invalid credentials; 429 after 10 failed attempts per IP within 5 minutes. |
+| POST | `/api/auth/logout` | Revokes the session and clears both cookies. |
+| GET | `/api/auth/me` | `{ authenticated, userId?, orgId?, role? }`. |
+
+When `REQUIRE_AUTH=true`, every non-probe route requires a session or API key;
+anonymous requests get 401 `{ error: "Sign in required." }`. When auth is on,
+legacy `tenant_id IS NULL` rows are assigned to the default workspace at boot.
+
+## Resume A/B review - `apps/api/src/committee/resumeAb.ts`
+
+Second-expert-pass flow over the completed committee run (design plan R2):
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/api/jobs/:id/resume/ab-run` | Starts the review: v1 (reuses the generated resume) -> eval1 -> v2 -> eval2 -> comparison. 202 `{ jobId, abPhase }`; 409 while one is in flight; 400 unless the job is completed with a blueprint. |
+| GET | `/api/jobs/:id/resume/versions` | `{ versions: [...], comparison, selectedVersion, abPhase }` - both versions with their markdown/template/evaluation, the deterministic comparison, and the cursor. |
+| POST | `/api/jobs/:id/resume/select` | `{ version: 1 \| 2 }` -> 200 with the updated `JobState`: the picked version becomes the canonical resume and is written to the dossier. |
+
+SSE events during a run: `resumeEval` (per version), `resumeVariant` (v2
+produced), `resumeComparison` (final). The comparison is computed in code with
+locked weights (jdCoverage 0.35, credibility 0.30, clarity 0.20,
+atsReadiness 0.15) and a 3-point tie band - the LLM never picks the winner.
+
+## JSON envelope (v1)
+
+Every webhook delivery body is now a versioned envelope:
+
+```json
+{
+  "spec": "rattle-snake.envelope.v1",
+  "type": "job.completed",
+  "version": 1,
+  "emittedAt": "2026-08-31T00:00:00.000Z",
+  "tenantId": "org_...",
+  "jobId": "run-013",
+  "payload": { "...raw job event..." : "" }
+}
+```
+
+`payload` is the same job event documented above. The `X-Webhook-Signature`
+HMAC is computed over the serialized envelope. Future integrations (importers,
+ATS posters, the browser extension) exchange the same envelope.
