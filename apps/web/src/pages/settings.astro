@@ -1,10 +1,14 @@
----
+﻿---
 import Layout from "../layouts/Layout.astro";
+import HydrationWatch from "../components/HydrationWatch.astro";
 import SettingsView from "../components/SettingsView.tsx";
 ---
 <Layout title="Settings">
   <header class="page-head">
     <h1>Settings</h1>
   </header>
-  <SettingsView client:load />
+  <div id="page-app">
+    <SettingsView client:load />
+  </div>
+  <HydrationWatch hostId="page-app" />
 </Layout>

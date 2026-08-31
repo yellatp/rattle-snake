@@ -1,18 +1,35 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
+import ErrorBoundary from "./ErrorBoundary";
 import type { JobState } from "@rattlesnake/shared";
 import { listJobs } from "../lib/api";
 
-export default function ResumeHistory() {
+function ResumeHistoryInner() {
   const [jobs, setJobs] = useState<JobState[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     listJobs()
       .then(setJobs)
       .catch((err) => setError(err instanceof Error ? err.message : String(err)));
-  }, []);
+  }, [reloadKey]);
 
-  if (error) return <div className="error-banner">Failed to load resume history: {error}</div>;
+  if (error)
+    return (
+      <div className="error-banner">
+        Failed to load resume history: {error}{" "}
+        <button
+          type="button"
+          className="btn small"
+          onClick={() => {
+            setError(null);
+            setReloadKey((k) => k + 1);
+          }}
+        >
+          Retry
+        </button>
+      </div>
+    );
   if (!jobs) return <p className="hint">Loading resume history...</p>;
 
   const withResume = jobs.filter((j) => j.rewrittenResume);
@@ -72,5 +89,13 @@ export default function ResumeHistory() {
         </tbody>
       </table>
     </div>
+  );
+}
+
+export default function ResumeHistory() {
+  return (
+    <ErrorBoundary>
+      <ResumeHistoryInner />
+    </ErrorBoundary>
   );
 }

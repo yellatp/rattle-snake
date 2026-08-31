@@ -1,10 +1,14 @@
----
+﻿---
 import Layout from "../layouts/Layout.astro";
+import HydrationWatch from "../components/HydrationWatch.astro";
 import NewJobForm from "../components/NewJobForm.tsx";
 ---
-<Layout title="SME Panel">
+<Layout title="New Run">
   <header class="page-head">
     <h1>New committee run</h1>
   </header>
-  <NewJobForm client:load />
+  <div id="page-app">
+    <NewJobForm client:load />
+  </div>
+  <HydrationWatch hostId="page-app" />
 </Layout>

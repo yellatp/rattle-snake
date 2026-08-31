@@ -1041,7 +1041,7 @@ function ProfilesViewInner() {
               <div className="pin-row">
                 <input
                   type="password"
-                  placeholder="Enter PIN to unlock"
+                  placeholder="Enter the profile PIN"
                   value={masterPinDraft}
                   onChange={(e) => setMasterPinDraft(e.target.value)}
                 />
@@ -1050,7 +1050,7 @@ function ProfilesViewInner() {
                   onClick={() => void promote(p.id, masterPinDraft.trim())}
                   disabled={busy || !masterPinDraft.trim()}
                 >
-                  Unlock and set as master
+                  Confirm PIN and set as master
                 </button>
                 <button className="btn" onClick={() => setMasterPinFor(null)} disabled={busy}>
                   Cancel

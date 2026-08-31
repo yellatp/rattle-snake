@@ -7,6 +7,13 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? "http://localhost:8787";
 ---
 
 <Layout title={id ? `Run ${id.slice(0, 12)}` : "Committee Run"}>
+  <nav class="crumbs" aria-label="Breadcrumb">
+    <a href="/dashboard">Dashboard</a>
+    <span>/</span>
+    <a href="/storage">Runs</a>
+    <span>/</span>
+    <span class="mono">{id ?? "unknown"}</span>
+  </nav>
   <div id="run-app" data-api-url={apiUrl}>
     {id ? (
       <DebateView client:load jobId={id} />
@@ -50,10 +57,16 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? "http://localhost:8787";
             '<h2 class="panel-title">Could not load this run</h2>' +
             '<p class="hint">The page did not connect to the app. Make sure the API server is running, then retry.</p>' +
             '<div class="btn-row">' +
-            '<a class="btn" href="javascript:location.reload()">Retry</a>' +
+            '<button class="btn" type="button" id="run-retry">Retry</button>' +
             '<a class="btn subtle" href="/dashboard">Back to dashboard</a>' +
             "</div>";
           el.replaceWith(panel);
+          var retryButton = document.getElementById("run-retry");
+          if (retryButton) {
+            retryButton.addEventListener("click", function () {
+              window.location.reload();
+            });
+          }
         }
         function check() {
           if (window.__debateViewReady) {

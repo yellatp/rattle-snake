@@ -1,10 +1,14 @@
----
+﻿---
 import Layout from "../layouts/Layout.astro";
+import HydrationWatch from "../components/HydrationWatch.astro";
 import JobList from "../components/JobList.tsx";
 ---
 <Layout title="Dashboard">
   <header class="page-head">
     <h1>Dashboard</h1>
   </header>
-  <JobList client:load />
+  <div id="page-app">
+    <JobList client:load />
+  </div>
+  <HydrationWatch hostId="page-app" />
 </Layout>

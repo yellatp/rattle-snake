@@ -1,18 +1,35 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
+import ErrorBoundary from "./ErrorBoundary";
 import type { JobState } from "@rattlesnake/shared";
 import { listJobs } from "../lib/api";
 
-export default function JobList() {
+function JobListInner() {
   const [jobs, setJobs] = useState<JobState[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     listJobs()
       .then(setJobs)
       .catch((err) => setError(err instanceof Error ? err.message : String(err)));
-  }, []);
+  }, [reloadKey]);
 
-  if (error) return <div className="error-banner">Failed to load runs: {error}</div>;
+  if (error)
+    return (
+      <div className="error-banner">
+        Failed to load runs: {error}{" "}
+        <button
+          type="button"
+          className="btn small"
+          onClick={() => {
+            setError(null);
+            setReloadKey((k) => k + 1);
+          }}
+        >
+          Retry
+        </button>
+      </div>
+    );
   if (!jobs) return <p className="hint">Loading committee runs...</p>;
   if (jobs.length === 0) {
     return <p className="hint">No committee runs yet. <a href="/sme-panel">Start an evaluation</a>.</p>;
@@ -55,5 +72,13 @@ export default function JobList() {
         </tbody>
       </table>
     </div>
+  );
+}
+
+export default function JobList() {
+  return (
+    <ErrorBoundary>
+      <JobListInner />
+    </ErrorBoundary>
   );
 }

@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
+import ErrorBoundary from "./ErrorBoundary";
 import {
   deleteJob,
   getJob,
@@ -165,7 +166,7 @@ function ProfileSection({ entry, onDeleted }: { entry: StorageProfile; onDeleted
   );
 }
 
-export default function StorageView() {
+function StorageViewInner() {
   const [data, setData] = useState<StorageResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -216,5 +217,13 @@ export default function StorageView() {
         </section>
       )}
     </div>
+  );
+}
+
+export default function StorageView() {
+  return (
+    <ErrorBoundary>
+      <StorageViewInner />
+    </ErrorBoundary>
   );
 }

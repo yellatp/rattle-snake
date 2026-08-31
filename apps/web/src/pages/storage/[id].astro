@@ -1,19 +1,21 @@
 ---
 import Layout from "../../layouts/Layout.astro";
 import StorageViewer from "../../components/StorageViewer.tsx";
+import HydrationWatch from "../../components/HydrationWatch.astro";
 
 const { id } = Astro.params;
 const tab = Astro.url.searchParams.get("tab") ?? undefined;
 ---
-<Layout title="Stored Result">
+<Layout title="Run detail">
   <div id="storage-viewer-app">
     {id ? (
       <StorageViewer client:load jobId={id} initialTab={tab} />
     ) : (
       <section class="panel">
         <h2>Result not found</h2>
-        <p class="hint"><a href="/storage">Back to storage</a></p>
+        <p class="hint"><a href="/storage">Back to runs</a></p>
       </section>
     )}
   </div>
+  <HydrationWatch hostId="storage-viewer-app" heading="Could not load this run" backHref="/storage" backLabel="Back to runs" />
 </Layout>

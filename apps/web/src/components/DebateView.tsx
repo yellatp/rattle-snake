@@ -33,6 +33,7 @@ import {
 import { sanitizeMarkdownHtml } from "../lib/sanitize";
 import ErrorBoundary from "./ErrorBoundary";
 import ColdEmailPanel from "./ColdEmailPanel";
+import ExportCenter from "./ExportCenter";
 import CoverLetterPanel from "./CoverLetterPanel";
 import GapAnalysisCard from "./GapAnalysisCard";
 import InterviewMockPanel from "./InterviewMockPanel";
@@ -454,6 +455,8 @@ function DebateViewInner({ jobId, initialJob = null }: Props) {
         </div>
       </header>
 
+      <StageStrip job={job} />
+
       {liveError && <div className="error-banner">{liveError}</div>}
       {isLive && (
         <div className="live-bar">
@@ -504,7 +507,7 @@ function DebateViewInner({ jobId, initialJob = null }: Props) {
 
       <SmePanel analyses={job.analyses ?? []} live={job.status === "debating"} />
 
-      <section className="panel">
+      <section className="panel" id="panel-discussion">
         <div className="panel-head">
           <h2>Debate Transcript</h2>
           <div className="panel-head-actions">
@@ -552,27 +555,40 @@ function DebateViewInner({ jobId, initialJob = null }: Props) {
         ))}
       </section>
 
-      {job.blueprint && <BlueprintView blueprint={job.blueprint} />}
-      {job.directorAudit && <DirectorAuditCard audit={job.directorAudit} />}
-      {job.executiveReview && <ExecutiveReviewCard review={job.executiveReview} />}
-      {job.gapAnalysis && <GapAnalysisCard gapResult={job.gapAnalysis} job={job} onSaved={patch} />}
-      {job.rewrittenResume && (
-        <RewrittenResume
-          resume={job.rewrittenResume}
-          resumeJson={job.rewrittenResumeJson}
-          meta={job.resumeMeta}
-          jobId={job.id}
-          onSaved={patch}
-        />
-      )}
+      <div id="panel-blueprint">
+        {job.blueprint && <BlueprintView blueprint={job.blueprint} />}
+      </div>
+      <div id="panel-review">
+        {job.directorAudit && <DirectorAuditCard audit={job.directorAudit} />}
+        {job.executiveReview && <ExecutiveReviewCard review={job.executiveReview} />}
+      </div>
+      <div id="panel-gap">
+        {job.gapAnalysis && <GapAnalysisCard gapResult={job.gapAnalysis} job={job} onSaved={patch} />}
+      </div>
+      <div id="panel-resume">
+        {job.rewrittenResume && (
+          <RewrittenResume
+            resume={job.rewrittenResume}
+            resumeJson={job.rewrittenResumeJson}
+            meta={job.resumeMeta}
+            jobId={job.id}
+            onSaved={patch}
+          />
+        )}
 
-      {job.status === "completed" && job.blueprint && (
-        <ResumeAbSection jobId={job.id} job={job} onPatch={patch} v2Preview={abV2} />
-      )}
+        {job.status === "completed" && job.blueprint && (
+          <ResumeAbSection jobId={job.id} job={job} onPatch={patch} v2Preview={abV2} />
+        )}
+      </div>
 
-      <ColdEmailPanel jobId={job.id} initialDraft={job.coldEmailDraft} />
-      <CoverLetterPanel jobId={job.id} initialDraft={job.coverLetterDraft} />
-      <InterviewMockPanel jobId={job.id} initialPlan={job.interviewPlan} />
+      <div id="panel-outreach">
+        <ColdEmailPanel jobId={job.id} initialDraft={job.coldEmailDraft} />
+        <CoverLetterPanel jobId={job.id} initialDraft={job.coverLetterDraft} />
+        <InterviewMockPanel jobId={job.id} initialPlan={job.interviewPlan} />
+      </div>
+
+      <ExportCenter job={job} />
+
 
       {showTranscript && (
         <TranscriptModal job={job} groups={groups} onClose={() => setShowTranscript(false)} />
@@ -1745,3 +1761,54 @@ function ResumeAbSection({
   );
 }
 
+
+/** Run-progress strip: every stage visible, completed stages scroll to their panel (14.5). */
+function StageStrip({ job }: { job: JobState }) {
+  const live = job.status === "pending" || job.status === "debating";
+  const steps: { id: string; label: string; done: boolean }[] = [
+    { id: "panel-discussion", label: "Discussion", done: job.transcript.length > 0 },
+    { id: "panel-blueprint", label: "Blueprint", done: Boolean(job.blueprint) },
+    {
+      id: "panel-review",
+      label: "Reviews",
+      done: Boolean(job.directorAudit || job.executiveReview),
+    },
+    { id: "panel-gap", label: "Gap analysis", done: Boolean(job.gapAnalysis) },
+    {
+      id: "panel-resume",
+      label: "Resume",
+      done: Boolean(job.rewrittenResume) || job.abPhase === "done",
+    },
+    {
+      id: "panel-outreach",
+      label: "Outreach",
+      done: Boolean(job.coldEmailDraft || job.coverLetterDraft || job.interviewPlan),
+    },
+    { id: "panel-export", label: "Export", done: false },
+  ];
+  let currentMarked = false;
+  const rendered = steps.map((step) => {
+    const active = !step.done && !currentMarked && (live || step.id === "panel-export");
+    if (active) currentMarked = true;
+    return { ...step, active };
+  });
+
+  function jump(id: string) {
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  return (
+    <nav className="stage-strip" aria-label="Run progress">
+      {rendered.map((step) => (
+        <button
+          key={step.id}
+          type="button"
+          className={`stage${step.done ? " done" : ""}${step.active ? " active" : ""}`}
+          onClick={() => jump(step.id)}
+        >
+          {step.label}
+        </button>
+      ))}
+    </nav>
+  );
+}

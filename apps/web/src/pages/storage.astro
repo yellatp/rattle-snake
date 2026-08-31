@@ -1,15 +1,19 @@
----
+﻿---
 import Layout from "../layouts/Layout.astro";
+import HydrationWatch from "../components/HydrationWatch.astro";
 import StorageView from "../components/StorageView.tsx";
 ---
-<Layout title="Storage">
+<Layout title="Runs">
   <header class="page-head">
-    <h1>Storage</h1>
+    <h1>Runs</h1>
     <p class="page-sub">
       Every run is grouped by user, then by company and role. Each one carries
       its own files - expert discussion, resume, cover letter, and interview
       prep - ready to view or download.
     </p>
   </header>
-  <StorageView client:load />
+  <div id="page-app">
+    <StorageView client:load />
+  </div>
+  <HydrationWatch hostId="page-app" />
 </Layout>

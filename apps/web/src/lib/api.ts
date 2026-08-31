@@ -152,7 +152,7 @@ export interface GenerateResumeResult {
 
 /**
  * On-demand resume generation for a completed run (WS-8 handoff). The debate
- * never rewrites a resume automatically — call this explicitly from the Resume
+ * never rewrites a resume automatically - call this explicitly from the Resume
  * Generation page, optionally with a role template override.
  */
 export function generateResume(

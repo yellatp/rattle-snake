@@ -8,12 +8,11 @@ const path = Astro.url.pathname;
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", short: "Dashboard" },
-  { href: "/sme-panel", label: "SME Panel", short: "SME Panel" },
-  { href: "/resume", label: "Resume", short: "Resume" },
-  { href: "/profile", label: "Profile", short: "Profile" },
-  { href: "/storage", label: "Storage", short: "Storage" },
+  { href: "/sme-panel", label: "New Run", short: "New Run" },
+  { href: "/storage", label: "Runs", short: "Runs" },
+  { href: "/profile", label: "Profiles", short: "Profiles" },
   { href: "/settings", label: "Settings", short: "Settings" },
-  { href: "/help", label: "Help & FAQ", short: "Help" },
+  { href: "/help", label: "Help", short: "Help" },
 ];
 
 function isActive(href: string): boolean {
@@ -29,14 +28,14 @@ function isActive(href: string): boolean {
     <meta name="generator" content={Astro.generator} />
     <link rel="icon" type="image/png" href="/rattle-snake.png" />
     <link rel="alternate icon" href="/rattle-snake.png" />
-    <title>{title} · Rattle-Snake V2</title>
+    <title>{title} · Rattle Snake</title>
   </head>
   <body>
     <div class="app-shell">
       <aside class="sidebar">
         <a class="brand" href="/dashboard">
           <img class="brand-logo" src="/rattle-snake.png" alt="Rattle Snake" />
-          <span class="brand-name">Rattle-Snake</span> <span class="brand-tag">V2</span>
+          <span class="brand-name">Rattle Snake</span>
         </a>
         <nav class="side-nav">
           {
@@ -59,7 +58,7 @@ function isActive(href: string): boolean {
     <footer class="site-footer">
       <div class="footer-inner">
         <span>
-          Rattle-Snake V2 · <a href="/help">Help & FAQ</a>
+          Rattle Snake · <a href="/help">Help</a>
         </span>
         <span class="footer-built">
           <span>Built in association with</span>

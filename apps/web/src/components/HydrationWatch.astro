@@ -1,0 +1,99 @@
+---
+/**
+ * Page-level hydration safety net (design plan R5/P3b, section 14.6).
+ *
+ * If the page's islands never hydrate (stale bundle, blocked module, crashed
+ * tab), this watchdog replaces the empty host with an actionable panel:
+ * hydration gets a grace period, the check stands down as soon as an island
+ * reports ready (window.__islandReady, set by ErrorBoundary on mount), and the
+ * failure panel only appears once the API is unreachable too.
+ */
+interface Props {
+  hostId: string;
+  heading?: string;
+  message?: string;
+  backHref?: string;
+  backLabel?: string;
+}
+
+const {
+  hostId,
+  heading = "Could not load this page",
+  message = "The page did not connect to the app. Make sure the server is running, then retry.",
+  backHref = "/dashboard",
+  backLabel = "Back to dashboard",
+} = Astro.props;
+const apiUrl = import.meta.env.PUBLIC_API_URL ?? "http://localhost:8787";
+---
+
+<script is:inline define:vars={{ hostId, heading, message, backHref, backLabel, apiUrl }}>
+  // @ts-nocheck - define:vars injects these at runtime; the checker cannot see them.
+  (function () {
+    var started = Date.now();
+    var interval = null;
+    var probed = false;
+    var host = document.getElementById(hostId);
+    if (!host) return;
+    function clear() {
+      if (interval) {
+        window.clearInterval(interval);
+        interval = null;
+      }
+    }
+    function fail() {
+      clear();
+      if (!host || host.children.length > 0) return;
+      var panel = document.createElement("div");
+      panel.className = "panel";
+      var h = document.createElement("h2");
+      h.textContent = heading;
+      var p = document.createElement("p");
+      p.className = "hint";
+      p.textContent = message;
+      var row = document.createElement("div");
+      row.className = "btn-row";
+      var retry = document.createElement("button");
+      retry.className = "btn";
+      retry.type = "button";
+      retry.textContent = "Retry";
+      retry.addEventListener("click", function () {
+        window.location.reload();
+      });
+      var back = document.createElement("a");
+      back.className = "btn secondary";
+      back.href = backHref;
+      back.textContent = backLabel;
+      row.appendChild(retry);
+      row.appendChild(back);
+      panel.appendChild(h);
+      panel.appendChild(p);
+      panel.appendChild(row);
+      host.replaceChildren(panel);
+    }
+    function check() {
+      if (window.__islandReady) {
+        clear();
+        return;
+      }
+      if (host && host.children.length > 0 && !host.dataset.watchEmpty) {
+        // Islands render their own loading states server-side; content alone
+        // is not proof of hydration, so we rely on the ready beacon plus the
+        // probe below. Nothing to do here.
+      }
+      if (Date.now() - started < 15000) return;
+      if (!probed) {
+        probed = true;
+        fetch(apiUrl + "/health")
+          .then(function (r) {
+            if (!r.ok) fail();
+          })
+          .catch(function () {
+            fail();
+          });
+        return;
+      }
+      if (Date.now() - started > 60000) fail();
+    }
+    interval = window.setInterval(check, 2000);
+  })();
+</script>

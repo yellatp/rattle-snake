@@ -15,6 +15,12 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
     return { error };
   }
 
+  componentDidMount(): void {
+    // Hydration beacon: the page-level watchdog waits for this before standing
+    // down, so a never-hydrating island surfaces an actionable panel.
+    (window as unknown as { __islandReady?: boolean }).__islandReady = true;
+  }
+
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("[ui] island crashed:", error, info.componentStack);
   }

@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
+import ErrorBoundary from "./ErrorBoundary";
 import type { SyntheticEvent } from "react";
 import { createJob, listJds, listProfiles, listResumes } from "../lib/api";
 import type {
@@ -40,7 +41,7 @@ Software Engineer, TravelBuddy (Travel tech), 2019-2021
 Skills: TypeScript, Node.js, Go, PostgreSQL, Redis, Kafka, Docker, Kubernetes,
 AWS, Terraform, CI/CD, TDD, observability (Grafana, Prometheus).`;
 
-export default function NewJobForm() {
+function NewJobFormInner() {
   const [jobLocation, setJobLocation] = useState("");
   const [jobDescription, setJobDescription] = useState("");
   const [baseResume, setBaseResume] = useState("");
@@ -304,5 +305,13 @@ export default function NewJobForm() {
 
       {error && <div className="error-banner">{error}</div>}
     </form>
+  );
+}
+
+export default function NewJobForm() {
+  return (
+    <ErrorBoundary>
+      <NewJobFormInner />
+    </ErrorBoundary>
   );
 }

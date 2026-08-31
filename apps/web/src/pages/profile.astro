@@ -1,10 +1,14 @@
----
+﻿---
 import Layout from "../layouts/Layout.astro";
+import HydrationWatch from "../components/HydrationWatch.astro";
 import ProfilesView from "../components/ProfilesView.tsx";
 ---
 <Layout title="Profiles">
   <header class="page-head">
-    <h1>Candidate Profiles</h1>
+    <h1>Candidate profiles</h1>
   </header>
-  <ProfilesView client:load />
+  <div id="page-app">
+    <ProfilesView client:load />
+  </div>
+  <HydrationWatch hostId="page-app" />
 </Layout>

@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
+import ErrorBoundary from "./ErrorBoundary";
 import type { FormEvent } from "react";
 import type {
   LlmConnection,
@@ -23,7 +24,7 @@ import {
 } from "../lib/api";
 import { PROVIDERS } from "../lib/providers";
 
-export default function SettingsView() {
+function SettingsViewInner() {
   const [profileName, setProfileName] = useState("");
   const [profileEmail, setProfileEmail] = useState("");
   const [profileUpdatedAt, setProfileUpdatedAt] = useState("");
@@ -589,5 +590,13 @@ function ConnectionList(props: ConnectionListProps) {
         </button>
       )}
     </section>
+  );
+}
+
+export default function SettingsView() {
+  return (
+    <ErrorBoundary>
+      <SettingsViewInner />
+    </ErrorBoundary>
   );
 }

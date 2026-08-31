@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
+import ErrorBoundary from "./ErrorBoundary";
 import type { EnhancementTier, JobState, ResumeMeta } from "@rattlesnake/shared";
 import ModeratorFeedback from "./ModeratorFeedback";
 import {
@@ -20,7 +21,7 @@ const toLabel = (job: JobState) =>
 const detectedRole = (job: JobState | null) =>
   job?.jdMeta?.role ?? job?.roleSlug ?? null;
 
-export default function ResumeGenerator({ initialJobId }: Props) {
+function ResumeGeneratorInner({ initialJobId }: Props) {
   const [jobId, setJobId] = useState<string>(initialJobId ?? "");
   const [jobs, setJobs] = useState<JobState[]>([]);
   const [job, setJob] = useState<JobState | null>(null);
@@ -215,5 +216,13 @@ function MetaBadge({ meta }: { meta: ResumeMeta }) {
       </div>
       <ModeratorFeedback meta={meta} />
     </div>
+  );
+}
+
+export default function ResumeGenerator(props: Props) {
+  return (
+    <ErrorBoundary>
+      <ResumeGeneratorInner {...props} />
+    </ErrorBoundary>
   );
 }

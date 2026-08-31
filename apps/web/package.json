@@ -11,6 +11,7 @@
     "start": "node ./dist/server/entry.mjs",
     "typecheck": "astro check",
     "smoke": "node scripts/smoke-routes.mjs",
+    "check:copy": "node scripts/check-copy.mjs",
     "test": "vitest run"
   },
   "dependencies": {

@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
+import ErrorBoundary from "./ErrorBoundary";
 import { marked } from "marked";
 import { roundHeading, type JobState, type TranscriptEntry } from "@rattlesnake/shared";
 import { deleteJob, getJob } from "../lib/api";
@@ -341,7 +342,7 @@ function availableTabs(job: JobState): Tab[] {
   return tabs;
 }
 
-export default function StorageViewer({ jobId, initialTab = "discussion" }: { jobId: string; initialTab?: string }) {
+function StorageViewerInner({ jobId, initialTab = "discussion" }: { jobId: string; initialTab?: string }) {
   const [job, setJob] = useState<JobState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>(
@@ -455,5 +456,13 @@ export default function StorageViewer({ jobId, initialTab = "discussion" }: { jo
       {tab === "coverletter" && <CoverLetterView job={job} />}
       {tab === "interview" && <InterviewView job={job} />}
     </div>
+  );
+}
+
+export default function StorageViewer(props: { jobId: string; initialTab?: string }) {
+  return (
+    <ErrorBoundary>
+      <StorageViewerInner {...props} />
+    </ErrorBoundary>
   );
 }
